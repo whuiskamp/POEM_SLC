@@ -21,3 +21,24 @@
 
 
 ## Should we allow cells to use the same halo cells? ##
+
+import sys
+import os
+import numpy as np
+import copy
+import collections as col
+import time
+import matplotlib.pyplot as plt
+import argparse
+from netCDF4 import Dataset as CDF
+
+__author__ = "Willem Huiskamp"
+__copyright__ = "Copyright 2019"
+__credits__ = ["", ""]
+__license__ = "GPLv3"
+__version__ = "0.0.1"
+__maintainer__ = "Willem Huiskamp"
+__email__ = "huiskamp@pik-potsdam.de"
+__status__ = "Prototype"
+
+if __name__ == "__main__":
