@@ -1,0 +1,169 @@
+This is the source code structure (From MOM.F90)
+
+* src/core:
+!!    The files here constitute the MOM dynamic core.  This directory
+!!    also includes files with the types that describe the model's
+!!    lateral grid and have defined types that are shared across
+!!    various MOM modules to allow for more succinct and flexible
+!!    subroutine argument lists.
+!!
+!!  * src/diagnostics:
+!!    The files here calculate various diagnostics that are anciliary
+!!    to the model itself.  While most of these diagnostics do not
+!!    directly affect the model's solution, there are some, like the
+!!    calculation of the deformation radius, that are used in some
+!!    of the process parameterizations.
+!!
+!!  * src/equation_of_state:
+!!    These files describe the physical properties of sea-water,
+!!    including both the equation of state and when it freezes.
+!!
+!!  * src/framework:
+!!    These files provide infrastructure utilities for MOM.  Many are
+!!    simply wrappers for capabilities provided by FMS, although others
+!!    provide capabilities (like the file_parser) that are unique to
+!!    MOM. When MOM is adapted to use a modeling infrastructure
+!!    distinct from FMS, most of the required changes are in this
+!!    directory.
+!!
+!!  * src/initialization:
+!!    These are the files that are used to initialize the MOM grid
+!!    or provide the initial physical state for MOM.  These files are
+!!    not intended to be modified, but provide a means for calling
+!!    user-specific initialization code like the examples in src/user.
+!!
+!!  * src/parameterizations/lateral:
+!!    These files implement a number of quasi-lateral (along-layer)
+!!    process parameterizations, including lateral viscosities,
+!!    parameterizations of eddy effects, and the calculation of tidal
+!!    forcing.
+!!
+!!  * src/parameterizations/vertical:
+!!    These files implement a number of vertical mixing or diabatic
+!!    processes, including the effects of vertical viscosity and
+!!    code to parameterize the planetary boundary layer.  There is a
+!!    separate driver that orchestrates this portion of the algorithm,
+!!    and there is a diversity of parameterizations to be found here.
+!!
+!!  * src/tracer:
+!!    These files handle the lateral transport and diffusion of
+!!    tracers, or are the code to implement various passive tracer
+!!    packages.  Additional tracer packages are readily accomodated.
+!!
+!!  * src/user:
+!!    These are either stub routines that a user could use to change
+!!    the model's initial conditions or forcing, or are examples that
+!!    implement specific test cases.  These files can easily  be hand
+!!    edited to create new analytically specified configurations.
+
+!!  Most simulations can be set up by modifying only the files
+!!  MOM_input, and possibly one or two of the files in src/user.
+!!  In addition, the diag_table (MOM_diag_table) will commonly be
+!!  modified to tailor the output to the needs of the question at
+!!  hand.  The FMS utility mkmf works with a file called path_names
+!!  to build an appropriate makefile, and path_names should be edited
+!!  to reflect the actual location of the desired source code.
+!!
+!!
+!!  There are 3 publicly visible subroutines in this file (MOM.F90).
+!!  * step_MOM steps MOM over a specified interval of time.
+!!  * MOM_initialize calls initialize and does other initialization
+!!    that does not warrant user modification.
+!!  * extract_surface_state determines the surface (bulk mixed layer
+!!    if traditional isoycnal vertical coordinate) properties of the
+!!    current model state and packages pointers to these fields into an
+!!    exported structure.
+!!
+!!    The remaining subroutines in this file (src/core/MOM.F90) are:
+!!  * find_total_transport determines the barotropic mass transport.
+!!  * register_diags registers many diagnostic fields for the dynamic
+!!    solver, or of the main model variables.
+!!  * MOM_timing_init initializes various CPU time clocks.
+!!  * write_static_fields writes out various time-invariant fields.
+!!  * set_restart_fields is used to specify those fields that are
+!!    written to and read from the restart file.
+!!
+!!  \section section_heat_budget Diagnosing MOM heat budget
+!!
+!!  Here are some example heat budgets for the ALE version of MOM6.
+!!
+!!  \subsection subsection_2d_heat_budget Depth integrated heat budget
+!!
+!!  Depth integrated heat budget diagnostic for MOM.
+!!
+!! * OPOTTEMPTEND_2d = T_ADVECTION_XY_2d + OPOTTEMPPMDIFF_2d + HFDS + HFGEOU
+!!
+!! * T_ADVECTION_XY_2d = horizontal advection
+!! * OPOTTEMPPMDIFF_2d = neutral diffusion
+!! * HFDS              = net surface boundary heat flux
+!! * HFGEOU            = geothermal heat flux
+!!
+!! * HFDS = net surface boundary heat flux entering the ocean
+!!        = rsntds + rlntds + hfls + hfss + heat_pme + hfsifrazil
+!!
+!! * More heat flux cross-checks
+!!   * hfds     = net_heat_coupler + hfsifrazil + heat_pme
+!!   * heat_pme = heat_content_surfwater
+!!              = heat_content_massin + heat_content_massout
+!!              = heat_content_fprec + heat_content_cond + heat_content_vprec
+!!               + hfrunoffds + hfevapds + hfrainds
+!!
+!!  \subsection subsection_3d_heat_budget Depth integrated heat budget
+!!
+!!  Here is an example 3d heat budget diagnostic for MOM.
+!!
+!! * OPOTTEMPTEND = T_ADVECTION_XY + TH_TENDENCY_VERT_REMAP + OPOTTEMPDIFF + OPOTTEMPPMDIFF
+!!                + BOUNDARY_FORCING_HEAT_TENDENCY + FRAZIL_HEAT_TENDENCY
+!!
+!! * OPOTTEMPTEND                   = net tendency of heat as diagnosed in MOM.F90
+!! * T_ADVECTION_XY                 = heating of a cell from lateral advection
+!! * TH_TENDENCY_VERT_REMAP         = heating of a cell from vertical remapping
+!! * OPOTTEMPDIFF                   = heating of a cell from diabatic diffusion
+!! * OPOTTEMPPMDIFF                 = heating of a cell from neutral diffusion
+!! * BOUNDARY_FORCING_HEAT_TENDENCY = heating of cell from boundary fluxes
+!! * FRAZIL_HEAT_TENDENCY           = heating of cell from frazil
+!!
+!! * TH_TENDENCY_VERT_REMAP has zero vertical sum, as it redistributes heat in vertical.
+!!
+!! * OPOTTEMPDIFF has zero vertical sum, as it redistributes heat in the vertical.
+!!
+!! * BOUNDARY_FORCING_HEAT_TENDENCY generally has 3d structure, with k > 1 contributions from
+!!   penetrative shortwave, and from other fluxes for the case when layers are tiny, in which
+!!   case MOM6 partitions tendencies into k > 1 layers.
+!!
+!! * FRAZIL_HEAT_TENDENCY generally has 3d structure, since MOM6 frazil calculation checks the
+!!   full ocean column.
+!!
+!! * FRAZIL_HEAT_TENDENCY[k=\@sum] = HFSIFRAZIL = column integrated frazil heating.
+!!
+!! * HFDS = FRAZIL_HEAT_TENDENCY[k=\@sum] + BOUNDARY_FORCING_HEAT_TENDENCY[k=\@sum]
+!!
+!!  Here is an example 2d heat budget (depth summed) diagnostic for MOM.
+!!
+!! * OPOTTEMPTEND_2d = T_ADVECTION_XY_2d + OPOTTEMPPMDIFF_2d + HFDS
+!!
+!!
+!!  Here is an example 3d salt budget diagnostic for MOM.
+!!
+!! * OSALTTEND = S_ADVECTION_XY + SH_TENDENCY_VERT_REMAP + OSALTDIFF + OSALTPMDIFF
+!!                + BOUNDARY_FORCING_SALT_TENDENCY
+!!
+!! * OSALTTEND                      = net tendency of salt as diagnosed in MOM.F90
+!! * S_ADVECTION_XY                 = salt convergence to cell from lateral advection
+!! * SH_TENDENCY_VERT_REMAP         = salt convergence to cell from vertical remapping
+!! * OSALTDIFF                      = salt convergence to cell from diabatic diffusion
+!! * OSALTPMDIFF                    = salt convergence to cell from neutral diffusion
+!! * BOUNDARY_FORCING_SALT_TENDENCY = salt convergence to cell from boundary fluxes
+!!
+!! * SH_TENDENCY_VERT_REMAP has zero vertical sum, as it redistributes salt in vertical.
+!!
+!! * OSALTDIFF has zero vertical sum, as it redistributes salt in the vertical.
+!!
+!! * BOUNDARY_FORCING_SALT_TENDENCY generally has 3d structure, with k > 1 contributions from
+!!   the case when layers are tiny, in which case MOM6 partitions tendencies into k > 1 layers.
+!!
+!! * SFDSI = BOUNDARY_FORCING_SALT_TENDENCY[k=\@sum]
+!!
+!!  Here is an example 2d salt budget (depth summed) diagnostic for MOM.
+!!
+!! * OSALTTEND_2d = S_ADVECTION_XY_2d + OSALTPMDIFF_2d + SFDSI (+ SALT_FLUX_RESTORE)

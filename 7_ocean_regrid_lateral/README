@@ -1,0 +1,16 @@
+This part of the process will laterally re-distribute mass and tracers based on changes in the ocean's bathymetry and 
+volume.
+
+Input data required:
+Old land-sea mask
+New land-sea mask
+MOM6 restart
+SIS2 restart
+Static grid information (area)
+
+1 - Generate a difference mask, with 1 = new ocean and 0 = new land.
+2 - If cells are not land-adjacent, 
+2 - Create array of cells with appropriate vars and values 1,0 if wetting or drying. This is calculated from restart files and cellarea.
+
+
+First test should simply be reducing topog by 10cm every 10 years while simultaneously sucking out sea water at different rates.

@@ -1,0 +1,41 @@
+This document outline the structure of the tool to be implemented in POEM which can accommodate change sea levels.
+
+Process of a simulation
+
+1 - Start model(MOM-SIS2, later coupled system)
+2 - After some time (10yrs, 50 yrs?), stop, write out restarts
+3 - During pause:
+	1 - Run PICO/PISM-VILMA (Antarctic & NH) - what will be the mass flux for the next ocean-sea ice run?
+	2 - Data from VILMA (bathymetry changes)
+	3 - Are any cells now land/ too shallow to be ocean? Make land
+		Are any cells now negative (ocean)? Check surrounding eta to determine if this cell becomes ocean or not.
+	4 - Column thickness of ocean - is it too shallow/unstable? (time to change to land?)
+	5 - Change in ice sheet extent - land/sea mask changes?
+	6 - Any new ocean cells? (MPI only allow new cells to appear/disappear if they were previously coastal)
+	7 - Are all ocean cells valid (no isolated blobs, can they advect)?
+	8 - Are there straits/passages that should be open? Parameterise with crossland mixing?
+For next run
+	8 - Re-generate exchange grids and mosaics
+	9 - Modify ocean and sea ice restart files (mass, tracers).
+	9 - *Regenerate river-routing fields for land model* ! This is not yet automated. Requires manual corrections. 
+	10 - Create fields for fluxes to/from PICO-PISM
+
+
+Notes on idividual tasks
+
+2.0 - Variables that will/may need to be edited in restart: 
+	  MOM.res.nc: Temp, Salt, h, ave_ssh, sfc, h2
+	  ice_model.res.nc: h_ice, Look up each variable - they are poorly named.
+
+3.1 - PICO-PISM run in series rather than parellel. 
+
+3.2 - Data from VILMA needs to be processed and regridded to the MOM grid.
+	  The regridding process will likely result in a noisy field and may need smoothing.
+	  After this it will be important to check we have not erroneously created land or 
+	  ocean where it should not exist. Comparisons between the old and new topog can also be done.
+	  Are the changes large enough that they won't be wiped out by smoothing/ regridding?
+
+3.3,4,5,6 - Which tool/ software to use to implement conservative redistribution of mass? (cdo? Fortran program?)
+	  variables required: cell_area, h (thickness), T, S, eta
+	  Take/give mass/tracers from a halo of surrounding cells?
+	  What should be the min. depth for a new ocean cell? 1m? 5?

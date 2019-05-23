@@ -1,0 +1,48 @@
+This outlines how MOM6 initialises from a restart file, with particular focus on the grid structure.
+This should inform the subsequent steps including changing bathymetry, lateral redistribution of mass and tracers, and 
+re-initialisation of the model.
+
+## working Notes ##
+
+There seems to be a file called MOM_horizontal_regridding.F90 which is called in initialization/MOM_state_initialization.F90. Could this somehow just solve our problems from the get-go? Nope!
+
+
+The config driver (either solo_driver or the coupler) will call initialize_MOM. This is within the main module of MOM: MOM.F90 (/src/MOM6/src/core/MOM.F90) 
+
+!!! initialize_MOM !!!
+	Initialize MOM, including memory allocation, setting up parameters and diagnostics,
+	initializing the ocean state variables, and initializing subsidiary modules
+	1) get_MOM_input - gets parameter files, dir paths and restart files
+
+	This is followed by a lot of param defs from MOM_input.
+    
+    2) MOM_domains_init !!! (MOM6/src/framework/MOM_domains.F90)
+	Sets up MOM domains and grids - deals with assigning PEs etc, not of interest to us.
+
+	3) hor_index_init
+
+	4) create_dyn_horgrid
+
+	5) verticalGridInit 
+	GV => CS%GV
+
+	6) MOM_initialize_fixed(dG, CS%OBC, param_file, write_geom_files, dirs%output_directory)
+!!! 
+
+
+
+
+
+subroutine ocean_model_init (/src/MOM6/config_src/coupled_driver/ocean_model_MOM.F90)
+	
+	1 - Model allocates surface state and surface forcing via 
+	call allocate_surface_state (defined in MOM6/src/core/MOM_variables.F90)
+	call surface_forcing_init (defined in MOM6/config_src/coupled_driver/MOM_surface_forcing.F90)
+
+	a.s.s simply initialises the data structures for surface variables such as sst, sss, rho, u, v etc and sets them to 0.
+
+	2 - initialize_ocean_public_type (define in MOM6/config_src/coupled_driver/ocean_model_MOM.F90)
+
+	
+
+
