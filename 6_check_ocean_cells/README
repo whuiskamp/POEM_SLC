@@ -1,0 +1,2 @@
+This part of the code will check the depth of the ocean and determine whether an ocean cell needs to become land.
+Finally, checks will be run to identify and eliminate inland/isolated ocean cells.

@@ -41,4 +41,8 @@ __maintainer__ = "Willem Huiskamp"
 __email__ = "huiskamp@pik-potsdam.de"
 __status__ = "Prototype"
 
+## Define functions ##
+
+
+
 if __name__ == "__main__":
