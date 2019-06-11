@@ -18,8 +18,6 @@
 # The mass to be removed from a drying cell is calculated and divided amongst the number of halo cells. This distribution is weighted
 # by halo-cell area.
 
-
-
 ## Should we allow cells to use the same halo cells? ##
 
 import sys

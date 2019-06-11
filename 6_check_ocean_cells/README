@@ -1,2 +1,16 @@
 This part of the code will check the depth of the ocean and determine whether an ocean cell needs to become land.
 Finally, checks will be run to identify and eliminate inland/isolated ocean cells.
+
+First issues to consider are those regarding the creation of new ocean cells. As the surrounding ocean cells need to be checked for their mean sea surface height, we need to implement a function that calculates a halo around a cell in question and returns the indices of these halo cells (IF they are ocean) back to the main program.
+
+Issue 1: If the cells in question are north of 65N, we are on the dipolar grid and need to account for the polar fold when searching for halo 
+	     cells. Not yet clear how this needs to be implemented to avoid issues with grid-re-entry in the North.
+Issue 2: Our grid is of course zonally re-entrant and this should be accounted for.
+Issue 3: Function will be written so that the radius (in cells) of the halo can be defined. There should be another input which describes a 
+		 ratio between the cell-size of the target/destination grid cell and the halo cells. For example, if a cell is in an embayment or coastal corner, the combined area of the halo cells may not be sufficiently large. A good target value may be that the sum of halo cells surface area must be equal to 10x the area of the target cell.
+		 This ratio criteria should be checked either within the function itself and if it is not met, the radius expands by 1 and the process is re-run.
+
+
+
+Issues unrelated to this tool:
+	At some point, there needs to be a check ensuring that, when removing water from halo cells, that these cells are not now too shallow. While this should never really be an issue due to the ratio criteria and the min depth criteria, it's something that needs to be watched.  
