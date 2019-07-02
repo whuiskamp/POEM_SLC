@@ -3,10 +3,8 @@
 # This script requires the following inputs:
 #  - MOM6 restart file
 #  - Updated bathymetry
-#  - Mask of points to check
-#
-# The script works as follows: We have from perious steps already checked points that have become land/ocean due to changes in ice
-# extent as well as due to changes in bathymetry. The final check is to investigate column height, relative to the updated bathymetry.
+# 
+# 
 
 ## Import packages ##
 
@@ -32,36 +30,88 @@ __status__ = "Prototype"
 
 ## Define functions ##
 
-def get_halo(data, col, row, size):
+def get_halo(omask, col, row, size):
     """Creates a halo for a grid cell in a 2D array of radius 'size' 
     """
     grid = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
     lat = grid.variables['geolat'][:,:]
     lon = grid.variables['geolon'][:,:]
-    # Step 1: Identidy halo cells
-    # We are below polar fold, so calculation can be done easy way.
-    if lat[row,col] < 65.5:
-        for i in range(size):
-            # save neighbor indices
-            col_E[i] = col+size
-            col_W[i] = col-size
-            row_N[i] = row+size
-            row_S[i] = row-size
- 
-        ## correction for domain edges (prevents out of bounds)
-            # rightmost column
-            if col_E[i] >= data.shape[0]-size:
-                col_E[i] = size-(data.shape[0]-col);
-            # leftmost column
-            if col_W[i] <= size-1:
-                col_W[i] = data.shape[0] - (size-col);
-            # lowermost row
-            if row_S[i] >= data.shape[1]-1:
-                row_S[i] = row;
-    else:
-        # We have to account for the North Pole overlap
+    
+    # Define variables
+    halo_mask = np.zeros(omask.shape, dtype=bool)
+    
+    # Identify halo cells
+    col_W = col+i
+    col_E = col-i
+    row_N = row+i
+    row_S = row-i
+    ## correction for domain edges (prevents out of bounds)
+    # We have to account for the polar fold at the N Pole.
+    if lat[row,col] > 65.5:
+       # If northernmost row is less than 0, it means the cells we want
+       # sit on the other side of the polar fold.
+       if row_N > omask.shape[0]-1:
+           fold_row = (omask.shape[0]-1)-(row_N-omask.shape[0])
+           # Identify these cells and note them in mask
+           PF_cells = fold_cells(col,fold_row,i).astype(int)
+           halo_mask[PF_cells[0,:],PF_cells[1,:]] = True;
+                
+           # Now we have fold cells, so set limit to Northern boundary
+           row_N = omask.shape[0]-1
+    # Now to obtain the indices for those cells on this side of the fold
+    # There is no cyclic i boundary in the dipolar NH grid
+    if col_W >= omask.shape[1]:
+        col_W = omask.shape[1]
+    if col_E <= 0:
+        col_E = 0;
+            
+    # If we are in the regular grid
+    # rightmost column (Westmost)
+    if col_W >= omask.shape[1]-1:
+        col_W = i-(omask.shape[1]-col);
+    # leftmost column (Eastmost)
+    if col_E <= 0:
+        col_E = omask.shape[1]-(i-col);
+    # Uppermost row (Southernmost)
+    if row_S < 0:
+        row_S = 0;
+           
+    halo_cells = norm_cells(col_E,col_W,row_S,row_N).astype(int) 
+    halo_mask[halo_cells[0,:],halo_cells[1,:]] = True; 
         
-    # Step 2: Check if they are ocean
+    
+def fold_cells(col,row,size):
+    # returns indices of halo cells that sit on the other side of the polar fold
+    # This assumes a grid 120x80 cells in size
+    # Input: col: The column index of the cell around which the halo is created
+    #        row: The row index on the other side of the fold 
+    #        size: The radius of the halo
+    Nrows = 80-row
+    rows =  np.arange(row,80,1)
+    cols = np.arange(col-size,col+size+1,1)
+    # Change the indices to refer to the other side of the polar fold
+    cols = 119 - cols
+    Ncols = cols.shape[0]
+    idx = np.full([2,Nrows*Ncols],np.nan) # Create cell index (rows,cols) 
+    for i in range(Nrows):    
+        idx[0,i::Nrows] = rows[i]
+    for j in range(Ncols):    
+         idx[1,j*Nrows:j*Nrows+Nrows] = cols[j]
+        
+    return idx    
+
+def norm_cells(E_lim,W_lim,S_lim,N_lim):
+    # Returns indices of halo cells that sit on the ocean grid (but not across the polar fold)
+    # Input: The cell limits in each direction (N,S,E,W).
+    Nrows = N_lim - S_lim +1; rows = np.arange(S_lim,N_lim+1,1)
+    Ncols = W_lim - E_lim +1; cols = np.arange(E_lim,W_lim+1,1)
+    idx = np.full([2,Nrows*Ncols],np.nan) # Create cell index (rows,cols)
+    for i in range(Nrows):    
+        idx[0,i::Nrows] = rows[i]
+    for j in range(Ncols):    
+         idx[1,j*Nrows:j*Nrows+Nrows] = cols[j]
+           
+    return idx
 
 def halo_eta(eta,cols,rows)
 	# calculates the mean ssh in a halo
@@ -116,7 +166,10 @@ if __name__ == "__main__":
         for j in range(depth.shape[1]):
             if ice_frac[i,j] <=0.3 and o_mask[i,j] == 0 and depth[i,j] >= 5:
                 o_mask_new[i,j] = 1;
-            else:
+            
+    # Check 2: Has new bathymetry created ocean/land?
+    
+    # Check 3: Have cells become wet/dry due to changes in mass?
                 
         
         
