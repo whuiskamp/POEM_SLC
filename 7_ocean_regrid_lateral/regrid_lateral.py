@@ -1,26 +1,24 @@
-# This script identifies regions in which ocean cells are either created or removed and re-distributes mass and tracers
-# on the lateral grid accordingly.
+# This script re-distributes mass and tracers to/from ocean cells are either created or removed 
 # This script requires the following inputs:
 #  - MOM6 restart file
 #  - SIS2 restart file
 #  - Static grid information for MOM
-#  - New and Old topogrpahy files
+#  - Mask information showing which cells are to be created/removed
 #
-# The script works as follows: First we identify where in the topography an ocean cell has turned into a land cell or vice versa. 
-# Next, we look at the integrated column thickness in the ocean restart and determine if is too shallow (< 0.5m) - if so, it is 
-# is also flagged to become a land cell. 
+# This script iterates through the cell change mask and for each cell that changes
+# type, the following is done:
+# 1: A halo is created around the cell and a check is performed to ensure that
+#    the halo is large enough (eg: 10x surface area of target cell).
+# 2: Mass and tracers to be created/removed calculated from target cell
+# 3: Mass and tracers redistributed to/from halo cells (weighted by cell area)
+# 4: Once all cells have been altered, checks are performed to ensure no 
+#    unnaturally large gradients in SSH or tracers.
+# (5): Where such gradients exist, smooth them.
 #
-# An array is created with the indices of all cells that will change (either wet or dry) and relevant attributes are extracted 
-# for these cells including h (for ice and ocean), tracer concentrations and SSH. Next we identify a halo around each wettin/drying 
-# cell. The initial halo will form a square two gridcells from the cell in question. A check is conducted that enough wet ocean cells 
-# fall within this halo (minimum 2). If not, the halo is expanded by one and repeated until this criteria is met.
-#   
-# The mass to be removed from a drying cell is calculated and divided amongst the number of halo cells. This distribution is weighted
-# by halo-cell area.
 
-## Should we allow cells to use the same halo cells? ##
 
 import sys
+sys.path.append('../6_check_ocean_cells')
 import os
 import numpy as np
 import copy
@@ -29,6 +27,8 @@ import time
 import matplotlib.pyplot as plt
 import argparse
 from netCDF4 import Dataset as CDF
+# Custom functions
+import chk_water_col
 
 __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2019"
@@ -41,6 +41,16 @@ __status__ = "Prototype"
 
 ## Define functions ##
 
+def halo_check(col,row,halo_mask):
+    
+    return
 
+def redist_mass():
+    
+    return
 
+def chk_grads():
+    
+    return
+    
 if __name__ == "__main__":

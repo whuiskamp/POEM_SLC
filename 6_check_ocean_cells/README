@@ -5,7 +5,9 @@ First issues to consider are those regarding the creation of new ocean cells. As
 
 Issue 1: If the cells in question are north of 65N, we are on the dipolar grid and need to account for the polar fold when searching for halo 
 	     cells. Not yet clear how this needs to be implemented to avoid issues with grid-re-entry in the North.
+### SOLVED ###
 Issue 2: Our grid is of course zonally re-entrant and this should be accounted for.
+### SOLVED ###
 Issue 3: Function will be written so that the radius (in cells) of the halo can be defined. There should be another input which describes a 
 		 ratio between the cell-size of the target/destination grid cell and the halo cells. For example, if a cell is in an embayment or coastal corner, the combined area of the halo cells may not be sufficiently large. A good target value may be that the sum of halo cells surface area must be equal to 10x the area of the target cell.
 		 This ratio criteria should be checked either within the function itself and if it is not met, the radius expands by 1 and the process is re-run.

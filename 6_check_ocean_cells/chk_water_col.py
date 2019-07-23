@@ -28,7 +28,7 @@ __email__ = "huiskamp@pik-potsdam.de"
 __status__ = "Prototype"
 
 
-## Define functions ##
+################################## Define functions ###################################
 
 def get_halo(omask, col, row, size):
     """Creates a halo for a grid cell in a 2D array of radius 'size' 
@@ -41,10 +41,10 @@ def get_halo(omask, col, row, size):
     halo_mask = np.zeros(omask.shape, dtype=bool)
     
     # Identify halo cells
-    col_W = col+i
-    col_E = col-i
-    row_N = row+i
-    row_S = row-i
+    col_W = col+size
+    col_E = col-size
+    row_N = row+size
+    row_S = row-size
     ## correction for domain edges (prevents out of bounds)
     # We have to account for the polar fold at the N Pole.
     if lat[row,col] > 65.5:
@@ -53,7 +53,7 @@ def get_halo(omask, col, row, size):
        if row_N > omask.shape[0]-1:
            fold_row = (omask.shape[0]-1)-(row_N-omask.shape[0])
            # Identify these cells and note them in mask
-           PF_cells = fold_cells(col,fold_row,i).astype(int)
+           PF_cells = fold_cells(col,fold_row,size).astype(int)
            halo_mask[PF_cells[0,:],PF_cells[1,:]] = True;
                 
            # Now we have fold cells, so set limit to Northern boundary
@@ -68,18 +68,23 @@ def get_halo(omask, col, row, size):
     # If we are in the regular grid
     # rightmost column (Westmost)
     if col_W >= omask.shape[1]-1:
-        col_W = i-(omask.shape[1]-col);
+        col_W = size-(omask.shape[1]-col);
     # leftmost column (Eastmost)
     if col_E <= 0:
-        col_E = omask.shape[1]-(i-col);
+        col_E = omask.shape[1]-(size-col);
     # Uppermost row (Southernmost)
     if row_S < 0:
         row_S = 0;
            
     halo_cells = norm_cells(col_E,col_W,row_S,row_N).astype(int) 
+    # Add halo cells to mask
     halo_mask[halo_cells[0,:],halo_cells[1,:]] = True; 
-        
+    # Finally, remove the cell around which the halo is made 
+    # and set all land points to false
+    halo_mask[col,row] = False; halo_mask[omask==0] = False    
     
+    return halo_mask
+
 def fold_cells(col,row,size):
     # returns indices of halo cells that sit on the other side of the polar fold
     # This assumes a grid 120x80 cells in size
@@ -113,29 +118,75 @@ def norm_cells(E_lim,W_lim,S_lim,N_lim):
            
     return idx
 
-def halo_eta(eta,cols,rows)
+def halo_eta(eta,col,row):
 	# calculates the mean ssh in a halo
 	# around point of interest (i,j) and returns an value at (i,j).
     # Eta must already have land values set to nan.
+    # Assumes o_mask is a global variable and use of numpy
     if np.isnan(eta[0,0]) == False:
         raise ValueError(str('eta not properly formatted. Land = '+str(eta[0,0]) \
                              + ', not NaN'))
+    halo = get_halo(o_mask_new,col,row,1)
+    eta_halo = eta[halo==True]
+    mean_eta = np.nanmean[eta_halo]
     
-    
-        
-    
-	
-def calc_coast(data):
+    return mean_eta
+def calc_coast(omask):
     # calculates whether an ocean cells is a coastal cell and 
     # creates a mask. Coastal cells are 1, all others are 0.
+    # Input: ocean mask file
+    coast_mask = np.full(omask.shape,np.nan)
+    for i in range(omask[0]):
+        for j in range(omask[1]):
+            if omask[i,j] == 1:
+                coast_mask[i,j] = check_neighbour(omask,i,j)
+    return coast_mask
+                
+def check_neighbour(data,row,col):
+    # checks data at [i,j] and returns true if any adjacent cell is masked
+    # (ie, has value 0 in array)
+    # We are assuming that the data being input is output from a GFDL MOM model
+    # with a tripolar grid.
+    col_p1 = col+1
+    col_m1 = col-1
+    row_p1 = row+1
+    row_m1 = row-1
+    
+    if col_p1 == data.shape[1]:
+        col_p1 = 0;
+    # leftmost column (Eastmost)
+    if col_m1 == -1:
+        col_m1 = data.shape[1]-1;
+    # Uppermost row (Southernmost)
+    if row_m1 < 0:
+        row_m1 = 0;
+        
+    if data[row,col_p1] == 0 or data[row,col_m1] == 0 or data[row_m1,col] == 0:
+        land = True
+    else: 
+        land = False
+    
+    # If we're in the top row, the row_p1 cell is on the other side of the polar fold.
+    # This means it will be the same top row, but in a mirrored column.
+    if row_p1 == data.shape[0]:
+        col_f = 199 - col
+        if data[row,col_f] == 0:
+            land = True
+        else:
+            land = False
+    elif data[row_p1,col] == 0:
+            land = True
+    else:
+        land = False
+        
+    return land
 
-
-
+########################################## Main code ###########################################
 
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
     
-    # Import all relevant datasets
+    # Import datasets
     new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
     MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
     #SIS2_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/ice_model.res.nc','r')
@@ -161,20 +212,36 @@ if __name__ == "__main__":
     depth(ice_frac >= 0.7 & o_mask > 0) = 0;
     o_mask_new(depth==0) = 0;
     
-    # Check 1.2: Has land ice created new ocean? 
+    # Check 1.2: Has change in ice sheet/ bathymetry created new ocean? 
     for i in range(depth.shape[0]):
         for j in range(depth.shape[1]):
-            if ice_frac[i,j] <=0.3 and o_mask[i,j] == 0 and depth[i,j] >= 5:
+            if ice_frac[i,j] <= 0.3 and o_mask[i,j] == 0 and depth[i,j] >= 5: # This needs to be updated to include a SSH check
                 o_mask_new[i,j] = 1;
             
-    # Check 2: Has new bathymetry created ocean/land?
+    # Check 2: Has change in ice sheet/ bathymetry created new land?
+    for i in range(depth.shape[0]):
+        for j in range(depth.shape[1]):
+            if (ice_frac[i,j] >= 0.7 and o_mask[i,j] == 1) or (depth[i,j] < 5 and thk): # This needs to be updated to include a SSH check
+                o_mask_new[i,j] = 0;
+    
     
     # Check 3: Have cells become wet/dry due to changes in mass?
-                
+     for i in range(thk.shape[0]):
+         for j in range(thk.shape[1]):
+             eta_mean = halo_eta(eta,i,j)
+             # New land?
+             if o_mask_new[i,j] == 1 and 
+             # Check column thicnkess
+             
+             # Comapare with new bathy depth
+             
+             # Compare with surrounding ave SSH
+               
         
         
     
-    
+    # This script should output a map identifying which cells will become ocean and 
+    # which will become land
     
     
     
