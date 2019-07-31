@@ -23,3 +23,5 @@ A note: get_halo in check_water_col.py has to be written in two parts: one for t
 TO DO LIST
 
 Create universal variables for ncols and nrows in the data we are using, so I don't have to keep using var.shape. Careful, these variables are already defined in some functions...
+
+Output file should not only have the change mask, but also any other field that needed to be changed (such as depth, omask etc or perhaps just delta versions of these fields). Should probably also assign lat/lon to each variable.

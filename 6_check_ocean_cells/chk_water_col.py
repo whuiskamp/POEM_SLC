@@ -22,7 +22,7 @@ import sys
 import os
 import numpy as np
 import copy as cp
-#import time
+import time
 #import matplotlib.pyplot as plt
 import argparse
 from netCDF4 import Dataset as CDF
@@ -31,7 +31,7 @@ __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2019"
 __credits__ = ["", ""]
 __license__ = "GPLv3"
-__version__ = "0.0.1"
+__version__ = "1.0.0"
 __maintainer__ = "Willem Huiskamp"
 __email__ = "huiskamp@pik-potsdam.de"
 __status__ = "Prototype"
@@ -143,7 +143,7 @@ def halo_eta(eta,col,row):
                              + ' not NaN'))
     halo = get_halo(o_mask_new,col,row,1)
     eta_halo = eta[halo==True]
-    mean_eta = np.nanmean[eta_halo]
+    mean_eta = np.mean(eta_halo)
     
     return mean_eta
 def calc_coast(omask):
@@ -206,6 +206,7 @@ if __name__ == "__main__":
         MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
         PISM_data = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
         Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
+        grid = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
     else:
         #old_bathy = CDF('')
         new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
@@ -220,6 +221,8 @@ if __name__ == "__main__":
     h          = MOM6_rest.variables['h'][0,:,:,:];
     ave_eta    = MOM6_rest.variables['ave_ssh'][0,:,:];
     eta        = MOM6_rest.variables['sfc'][0,:,:];
+    lat = grid.variables['geolat'][:,:]
+    lon = grid.variables['geolon'][:,:]
     if test == True:
         ice_frac  = PISM_data.variables['mask'][:,:];
         ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0;
@@ -265,38 +268,28 @@ if __name__ == "__main__":
         id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')
     else:
         id = CDF('dir', 'w')
-    id.createDimension('x', 360)
-    id.createDimension('y', 180)
-    id.createDimension('x1',1)
-    id.createDimension('x2',361)
-    id.createDimension('x3',181)
-    id.createVariable('xdat', 'f8', ('x2'))
-    id.variables['xdat'].units = 'radians_east'
-    id.variables['xdat'].cartesian_axis = 'X'
-    id.variables['xdat'].long_name = 'longitude (radians)'
-    id.variables['xdat'][:] = xdat[:]
-    id.createVariable('ydat', 'f8', ('x3'))
-    id.variables['ydat'].units = 'radians_north'
-    id.variables['ydat'].cartesian_axis = 'Y'
-    id.variables['ydat'].long_name = 'latitude (radians)'
-    id.variables['ydat'][:] = ydat[:]
-    id.createVariable('zdat', 'f8', ('y','x'))
-    id.variables['zdat'].units = 'meters'
-    id.variables['zdat'].cartesian_axis = 'Z'
-    id.variables['zdat'].long_name = 'height above sea level'
-    id.variables['zdat'][:] = zdat[:]
-    id.createVariable('ipts', 'f8', ('x1'))
-    id.variables['ipts'].units = 'none'
-    id.variables['ipts'].long_name = 'number of lon cells'
-    id.variables['ipts'][:] = 360
-    id.createVariable('jpts', 'f8', ('x1'))
-    id.variables['jpts'].units = 'none'
-    id.variables['jpts'].long_name = 'number of lat cells'
-    id.variables['jpts'][:] = 180
-    
-    id.description = "Replacement for orography file navy_topography.data.nc derived from orog field in file I6_C.VM5a_1deg."+str(year)+".nc"
+    # Create dimensions for vars.
+    id.createDimension('lonh', lon.shape[1]);
+    id.createDimension('lath', lat.shape[0]);
+    id.createVariable('lonh', 'f8', ('lonh'));
+    id.variables['lonh'].units = 'degrees_east'
+    id.variables['lonh'].cartesian_axis = 'X'
+    id.variables['lonh'].long_name = 'T-cell longitude'
+    id.variables['lonh'][:] = grid.variables['lonh'][:]
+    id.createVariable('lath', 'f8', ('lath'));
+    id.variables['lath'].units = 'degrees_north'
+    id.variables['lath'].cartesian_axis = 'Y'
+    id.variables['lath'].long_name = 'T-cell latitude'
+    id.variables['lath'][:] = grid.variables['lath'][:]
+    # Define variables and fill data
+    id.createVariable('chng_mask', 'f8', ('lath','lonh'))
+    id.variables['chng_mask'].units = 'none'
+    id.variables['chng_mask'].long_name = 'Mask indicating changing ocean/ land cells'
+    id.variables['chng_mask'][:] = chng_mask[:]
+        
+    id.description = "This file contains a mask which lists cells that should change from ocean to land (-1) or land to ocean (1)"
     id.history = "Created " + time.ctime(time.time())
-    id.source = "created using /p/projects/climber3/huiskamp/POEM/work/LGM_data/scripts/prep_orog.py"
+    id.source = "created using /p/projects/climber3/huiskamp/POEM/work/slr_tool/6_check_ocean_cells/chk_water_col.py"
     id.close()
     
     
