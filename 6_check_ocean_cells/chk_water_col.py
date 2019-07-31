@@ -4,7 +4,17 @@
 #  - MOM6 restart file
 #  - Updated bathymetry
 # 
-# 
+# This script outputs the 'change mask', an array indicating which cells will change from
+# ocean to land (-1) or land to ocean (1). All other values are NaN.
+#
+# There are 3 checks for changes in ocean/land. 
+# Check 1: Has land ice exntent or change in bathymetry height created new land?
+#          This check is unconditional (ie: no matter what sea level is doing, this
+#          cell is now land).
+# Check 2: Has column thickness decreased enough to dry out the cell?
+#          This is conditional on changes in bathymetry and surrounding SSH.
+# Check 3:          
+
 
 ## Import packages ##
 
@@ -12,9 +22,8 @@ import sys
 import os
 import numpy as np
 import copy as cp
-import collections as col
-import time
-import matplotlib.pyplot as plt
+#import time
+#import matplotlib.pyplot as plt
 import argparse
 from netCDF4 import Dataset as CDF
 
@@ -35,7 +44,6 @@ def get_halo(omask, col, row, size):
     """
     grid = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
     lat = grid.variables['geolat'][:,:]
-    lon = grid.variables['geolon'][:,:]
     
     # Define variables
     halo_mask = np.zeros(omask.shape, dtype=bool)
@@ -109,12 +117,19 @@ def norm_cells(E_lim,W_lim,S_lim,N_lim):
     # Returns indices of halo cells that sit on the ocean grid (but not across the polar fold)
     # Input: The cell limits in each direction (N,S,E,W).
     Nrows = N_lim - S_lim +1; rows = np.arange(S_lim,N_lim+1,1)
-    Ncols = W_lim - E_lim +1; cols = np.arange(E_lim,W_lim+1,1)
+    # Account for lon wrap-around
+    if W_lim < E_lim:
+        E_cells = 120 - E_lim; W_cells = W_lim + 1;
+        Ncols = W_lim - E_lim +121; cols = np.zeros(Ncols);
+        cols[0:E_cells] = np.arange(E_lim,120,1)
+        cols[E_cells+1:W_cells] = np.arange(0,W_lim+1,1)
+    else:
+        Ncols = W_lim - E_lim +1; cols = np.arange(E_lim,W_lim+1,1)
     idx = np.full([2,Nrows*Ncols],np.nan) # Create cell index (rows,cols)
     for i in range(Nrows):    
         idx[0,i::Nrows] = rows[i]
     for j in range(Ncols):    
-         idx[1,j*Nrows:j*Nrows+Nrows] = cols[j]
+        idx[1,j*Nrows:j*Nrows+Nrows] = cols[j]
            
     return idx
 
@@ -125,7 +140,7 @@ def halo_eta(eta,col,row):
     # Assumes o_mask is a global variable and use of numpy
     if np.isnan(eta[0,0]) == False:
         raise ValueError(str('eta not properly formatted. Land = '+str(eta[0,0]) \
-                             + ', not NaN'))
+                             + ' not NaN'))
     halo = get_halo(o_mask_new,col,row,1)
     eta_halo = eta[halo==True]
     mean_eta = np.nanmean[eta_halo]
@@ -185,63 +200,104 @@ def check_neighbour(data,row,col):
 
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
+    test = True # We'll use different datasets while running tests
+    if test == True:
+        new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
+        MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
+        PISM_data = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
+        Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
+    else:
+        #old_bathy = CDF('')
+        new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
+        MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
+        #SIS2_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/ice_model.res.nc','r')
+        #PISM_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
+        # seaice data probably not required in this step.
+        Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
     
-    # Import datasets
-    new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
-    MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
-    #SIS2_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/ice_model.res.nc','r')
-    #PISM_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
-    # seaice data probably not required in this step.
-    Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
-    
-    # Extract vars.
+    # Extract/ define vars.
     depth      = new_bathy.variables['depth'][:,:]; new_bathy.close()
     h          = MOM6_rest.variables['h'][0,:,:,:];
     ave_eta    = MOM6_rest.variables['ave_ssh'][0,:,:];
     eta        = MOM6_rest.variables['sfc'][0,:,:];
-    #ice_frac  = PISM_data.variables['ice_frac'][:,:];
+    if test == True:
+        ice_frac  = PISM_data.variables['mask'][:,:];
+        ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0;
+    else:
+        ice_frac  = PISM_data.variables['ice_frac'][:,:];
     o_mask     = Omask.variables['mask'][:,:];
     o_mask_new = cp.deepcopy(o_mask);
+    chng_mask  = np.full(o_mask.shape, np.nan);
     
     # Variable pre-processing
-    h[:,o_mask==0]      = np.nan;
-    ave_eta[o_mask==0]  = np.nan;
-    thk                 = np.sum(h,0);
+    h[:,o_mask==0]      = np.nan;  # Change land to NaN
+    ave_eta[o_mask==0]  = np.nan;  # Change land to NaN
+    eta[o_mask==0]      = np.nan   # Change land to NaN
     
-    # Check 1.1: Has land ice created new land? Make it land and update mask
-    depth(ice_frac >= 0.7 & o_mask > 0) = 0;
-    o_mask_new(depth==0) = 0;
-    
-    # Check 1.2: Has change in ice sheet/ bathymetry created new ocean? 
+    # Check 1 Have we created new land via changes in ice sheet extent or
+    # topography height? Update mask & change mask
     for i in range(depth.shape[0]):
         for j in range(depth.shape[1]):
-            if ice_frac[i,j] <= 0.3 and o_mask[i,j] == 0 and depth[i,j] >= 5: # This needs to be updated to include a SSH check
-                o_mask_new[i,j] = 1;
-            
-    # Check 2: Has change in ice sheet/ bathymetry created new land?
-    for i in range(depth.shape[0]):
-        for j in range(depth.shape[1]):
-            if (ice_frac[i,j] >= 0.7 and o_mask[i,j] == 1) or (depth[i,j] < 5 and thk): # This needs to be updated to include a SSH check
+            if (ice_frac[i,j] >= 0.7 and o_mask[i,j] > 0) or 0 < depth[i,j] < 5: 
                 o_mask_new[i,j] = 0;
+                depth[i,j]      = 0; 
+                chng_mask[i,j]  = -1;
     
-    
-    # Check 3: Have cells become wet/dry due to changes in mass?
-     for i in range(thk.shape[0]):
-         for j in range(thk.shape[1]):
-             eta_mean = halo_eta(eta,i,j)
-             # New land?
-             if o_mask_new[i,j] == 1 and 
-             # Check column thicnkess
-             
-             # Comapare with new bathy depth
-             
-             # Compare with surrounding ave SSH
-               
+    # Check 2: Has change in SSH/ bathymetry created new land?
+    for i in range(depth.shape[0]):
+        for j in range(depth.shape[1]):
+            if (ave_eta[i,j] + depth[i,j] < 2) and o_mask[i,j] > 0:
+                o_mask_new[i,j] = 0;
+                depth[i,j]      = 0;
+                chng_mask[i,j]  = -1;
         
-        
+    # Check 3: Have cells become ocean due to receding land ice?    
+    for i in range(depth.shape[0]):
+        for j in range(depth.shape[1]):
+            if ice_frac[i,j] <= 0.3 and o_mask[i,j] == 0 and depth[i,j] >= 5:
+                eta_mean = halo_eta(eta,j,i);
+                if eta_mean + depth[i,j] > 2:
+                    o_mask_new[i,j] = 1;
+                    chng_mask[i,j]  = 1;
+                    
+    # Write change mask to netCDF
+    if test == True:
+        id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')
+    else:
+        id = CDF('dir', 'w')
+    id.createDimension('x', 360)
+    id.createDimension('y', 180)
+    id.createDimension('x1',1)
+    id.createDimension('x2',361)
+    id.createDimension('x3',181)
+    id.createVariable('xdat', 'f8', ('x2'))
+    id.variables['xdat'].units = 'radians_east'
+    id.variables['xdat'].cartesian_axis = 'X'
+    id.variables['xdat'].long_name = 'longitude (radians)'
+    id.variables['xdat'][:] = xdat[:]
+    id.createVariable('ydat', 'f8', ('x3'))
+    id.variables['ydat'].units = 'radians_north'
+    id.variables['ydat'].cartesian_axis = 'Y'
+    id.variables['ydat'].long_name = 'latitude (radians)'
+    id.variables['ydat'][:] = ydat[:]
+    id.createVariable('zdat', 'f8', ('y','x'))
+    id.variables['zdat'].units = 'meters'
+    id.variables['zdat'].cartesian_axis = 'Z'
+    id.variables['zdat'].long_name = 'height above sea level'
+    id.variables['zdat'][:] = zdat[:]
+    id.createVariable('ipts', 'f8', ('x1'))
+    id.variables['ipts'].units = 'none'
+    id.variables['ipts'].long_name = 'number of lon cells'
+    id.variables['ipts'][:] = 360
+    id.createVariable('jpts', 'f8', ('x1'))
+    id.variables['jpts'].units = 'none'
+    id.variables['jpts'].long_name = 'number of lat cells'
+    id.variables['jpts'][:] = 180
     
-    # This script should output a map identifying which cells will become ocean and 
-    # which will become land
+    id.description = "Replacement for orography file navy_topography.data.nc derived from orog field in file I6_C.VM5a_1deg."+str(year)+".nc"
+    id.history = "Created " + time.ctime(time.time())
+    id.source = "created using /p/projects/climber3/huiskamp/POEM/work/LGM_data/scripts/prep_orog.py"
+    id.close()
     
     
     

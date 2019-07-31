@@ -16,7 +16,6 @@
 # (5): Where such gradients exist, smooth them.
 #
 
-
 import sys
 sys.path.append('../6_check_ocean_cells')
 import os
