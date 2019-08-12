@@ -37,11 +37,11 @@ __email__ = "huiskamp@pik-potsdam.de"
 __status__ = "Prototype"
 
 
-################################## Define functions ###################################
+############################## Define functions ###############################
 
-def get_halo(omask, col, row, size):
-    """Creates a halo for a grid cell in a 2D array of radius 'size' 
-    """
+def get_halo(omask, row, col, size):
+    # Creates a halo for a grid cell in a 2D array of radius 'size' 
+    # Requires global variable omask
     grid = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
     lat = grid.variables['geolat'][:,:]
     
@@ -61,17 +61,17 @@ def get_halo(omask, col, row, size):
        if row_N > omask.shape[0]-1:
            fold_row = (omask.shape[0]-1)-(row_N-omask.shape[0])
            # Identify these cells and note them in mask
-           PF_cells = fold_cells(col,fold_row,size).astype(int)
+           PF_cells = fold_cells(fold_row,col,size).astype(int)
            halo_mask[PF_cells[0,:],PF_cells[1,:]] = True;
                 
            # Now we have fold cells, so set limit to Northern boundary
            row_N = omask.shape[0]-1
-    # Now to obtain the indices for those cells on this side of the fold
-    # There is no cyclic i boundary in the dipolar NH grid
-    if col_W >= omask.shape[1]:
-        col_W = omask.shape[1]
-    if col_E <= 0:
-        col_E = 0;
+       # Now to obtain the indices for those cells on this side of the fold
+       # There is no cyclic i boundary in the dipolar NH grid
+       if col_W >= omask.shape[1]:
+           col_W = omask.shape[1]
+       if col_E <= 0:
+           col_E = 0;
             
     # If we are in the regular grid
     # rightmost column (Westmost)
@@ -89,11 +89,11 @@ def get_halo(omask, col, row, size):
     halo_mask[halo_cells[0,:],halo_cells[1,:]] = True; 
     # Finally, remove the cell around which the halo is made 
     # and set all land points to false
-    halo_mask[col,row] = False; halo_mask[omask==0] = False    
+    halo_mask[row,col] = False; halo_mask[omask==0] = False    
     
     return halo_mask
 
-def fold_cells(col,row,size):
+def fold_cells(row,col,size):
     # returns indices of halo cells that sit on the other side of the polar fold
     # This assumes a grid 120x80 cells in size
     # Input: col: The column index of the cell around which the halo is created
@@ -119,10 +119,10 @@ def norm_cells(E_lim,W_lim,S_lim,N_lim):
     Nrows = N_lim - S_lim +1; rows = np.arange(S_lim,N_lim+1,1)
     # Account for lon wrap-around
     if W_lim < E_lim:
-        E_cells = 120 - E_lim; W_cells = W_lim + 1;
+        E_cells = 120 - E_lim; 
         Ncols = W_lim - E_lim +121; cols = np.zeros(Ncols);
         cols[0:E_cells] = np.arange(E_lim,120,1)
-        cols[E_cells+1:W_cells] = np.arange(0,W_lim+1,1)
+        cols[E_cells:Ncols] = np.arange(0,W_lim+1,1)
     else:
         Ncols = W_lim - E_lim +1; cols = np.arange(E_lim,W_lim+1,1)
     idx = np.full([2,Nrows*Ncols],np.nan) # Create cell index (rows,cols)
@@ -133,7 +133,7 @@ def norm_cells(E_lim,W_lim,S_lim,N_lim):
            
     return idx
 
-def halo_eta(eta,col,row):
+def halo_eta(eta,row,col):
 	# calculates the mean ssh in a halo
 	# around point of interest (i,j) and returns an value at (i,j).
     # Eta must already have land values set to nan.
@@ -141,7 +141,7 @@ def halo_eta(eta,col,row):
     if np.isnan(eta[0,0]) == False:
         raise ValueError(str('eta not properly formatted. Land = '+str(eta[0,0]) \
                              + ' not NaN'))
-    halo = get_halo(o_mask_new,col,row,1)
+    halo = get_halo(o_mask_new,row,col,1)
     eta_halo = eta[halo==True]
     mean_eta = np.mean(eta_halo)
     
@@ -196,7 +196,7 @@ def check_neighbour(data,row,col):
         
     return land
 
-########################################## Main code ###########################################
+################################# Main Code ###################################
 
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
@@ -206,7 +206,7 @@ if __name__ == "__main__":
         MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
         PISM_data = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
         Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
-        grid = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
+        grid      = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
     else:
         #old_bathy = CDF('')
         new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
@@ -216,7 +216,7 @@ if __name__ == "__main__":
         # seaice data probably not required in this step.
         Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
     
-    # Extract/ define vars.
+    # Extract/ define variables
     depth      = new_bathy.variables['depth'][:,:]; new_bathy.close()
     h          = MOM6_rest.variables['h'][0,:,:,:];
     ave_eta    = MOM6_rest.variables['ave_ssh'][0,:,:];
@@ -282,12 +282,19 @@ if __name__ == "__main__":
     id.variables['lath'].long_name = 'T-cell latitude'
     id.variables['lath'][:] = grid.variables['lath'][:]
     # Define variables and fill data
+    # Cell change mask
     id.createVariable('chng_mask', 'f8', ('lath','lonh'))
     id.variables['chng_mask'].units = 'none'
     id.variables['chng_mask'].long_name = 'Mask indicating changing ocean/ land cells'
     id.variables['chng_mask'][:] = chng_mask[:]
-        
-    id.description = "This file contains a mask which lists cells that should change from ocean to land (-1) or land to ocean (1)"
+    # New ocean mask
+    id.createVariable('o_mask_new', 'f8', ('lath','lonh'))
+    id.variables['o_mask_new'].units = 'none'
+    id.variables['o_mask_new'].long_name = 'Updated ocean mask'
+    id.variables['o_mask_new'][:] = o_mask_new[:]
+    
+    id.description = "This file contains a mask which lists cells that should change from \
+                        ocean to land (-1) or land to ocean (1) as well as an updated land-sea mask"
     id.history = "Created " + time.ctime(time.time())
     id.source = "created using /p/projects/climber3/huiskamp/POEM/work/slr_tool/6_check_ocean_cells/chk_water_col.py"
     id.close()

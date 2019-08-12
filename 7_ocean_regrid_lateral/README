@@ -8,9 +8,65 @@ MOM6 restart
 SIS2 restart
 Static grid information (area)
 
-1 - Generate a difference mask, with 1 = new ocean and 0 = new land.
-2 - If cells are not land-adjacent, 
-2 - Create array of cells with appropriate vars and values 1,0 if wetting or drying. This is calculated from restart files and cellarea.
+CHECK HALOS
+First step is to take the change mask from the chk_water_col script and assign each change cell a halo of an appropriate size.
+
+Inputs required: change mask, cell area field, new land-sea mask
+outputs: an array where each change point index lists the required size of the halo
+ 
+Iterate through each changepoint. Beginning with halo of 2, get corresponding area cells, sum them, then determine if they meet a size criteria, if not, repeat but with size increasing by +1
+
+Second step is to calculate the mass in each change point - ocean and sea ice. This is then divided between the halo cells and also weighted by the size of each halo cell (larger cells recieve more mass). This may require a new function? 
+When calculaing mass from sea ice model, is there a conversion between ice mass and ocean mass? Look this up in the code.
+
+Ice model: Ice restarts have a couple of variables we are interested in: h_snow, h_ice, part_size (part_sz in model. Fractional ice cover in each cell, for each z-level), lprec, fprec, sal_ice(const), enth_ice, enth_snow and (maybe?) T_skin.
+Seems to be no restart variable for pond water on ice. Where is this mass stored?
+These variables all have 5 vertical layers and represent the biggest obstacle when changing from ocean -> land. 
+rho_ice = 905 kg m-3
+rho_snow = 330 kg m-3
+ice_bulk_salinity is also set, defaults to 4g/kg but seems to be set to 5 in our test runs. Double check this and find some way of reading in the correct value from the MOM_input file or the logs.
+
+In the SIS_transport.F90 code, there are two subroutines (get_total_amounts and get_total_enthalpy) that calculate sum values for each grid cell in order to check for conservation. Use this to see how variables are treated/ calculated.
+
+For eg: total mass and enthalpy for ice at each grid cell is calculated in the following way:
+
+  total mass     =  grid cell area * cell ice frac  * mass of ice/m2
+sum_mca_ice(i,j) =  G%areaT(i,j)   * (part_sz(i,j,k)* mH_ice(i,j,k))
+
+Enthalpy is a bit trickier:
+
+I_Nk = 1.0 / IG%NkIce		   nkIce = number of vertical layers in sea ice	
+do m=1,IG%NkIce;               m loops through z levels of ice (we have 4)
+	do k=1,IG%CatIce;		   k loops through categories of ice (we have 5)
+		do j=jsc,jec;
+			do i=isc,iec
+    			sum_enth_ice(i,j) = sum_enth_ice(i,j) + (G%areaT(i,j) * &
+              ((mH_ice(i,j,k)*part_sz(i,j,k))*I_Nk)) * heat_ice(i,j,k,m)
+			enddo;
+	    enddo; 
+	enddo;
+enddo
+
+So:
+  total enthalpy  = grid cell area * ((mass of ice/m2  * cell ice frac) * 1/no K levels) * enthalpy of ice
+sum_enth_ice(i,j) = (G%areaT(i,j)  * ((mH_ice(i,j,k)*part_sz(i,j,k))    * I_Nk))         * heat_ice(i,j,k,m)
+
+In the ocean it's a little simpler...
+
+      var we want * vertical grid to kg conversion * cell layer thick  * gridcell area (T) * ocean mask
+      				(usually just 1)
+sum = var(i,j,k)  * ((GV%H_to_kg_m2                * h(i,j,k))         * (G%areaT(i,j)     * G%mask2dT(i,j)))
 
 
-First test should simply be reducing topog by 10cm every 10 years while simultaneously sucking out sea water at different rates.
+
+
+
+To Do:
+
+###DONE###
+Create a function like ave_eta, but that is more flexible. So, it can calculate the halo-mean of ANY field, rather than just eta specifically.
+Or, simply make it 'halo_calc' and add in options for means or sums etc.
+
+Include (optional?) diagnostic ouput including a map of all halos for all change points (perhaps split into two layers - one for halos where mass is added, and one for where it's removed.)
+
+leaving fprecip and lprecip out of the mass calculation for ice restart. Perhaps we need to redist. these variables too?
