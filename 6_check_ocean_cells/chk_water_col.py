@@ -201,7 +201,7 @@ def check_neighbour(data,row,col):
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
     test = True # We'll use different datasets while running tests
-    if test == True:
+    if test:
         new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
         MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
         PISM_data = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
@@ -221,9 +221,10 @@ if __name__ == "__main__":
     h          = MOM6_rest.variables['h'][0,:,:,:];
     ave_eta    = MOM6_rest.variables['ave_ssh'][0,:,:];
     eta        = MOM6_rest.variables['sfc'][0,:,:];
-    lat = grid.variables['geolat'][:,:]
-    lon = grid.variables['geolon'][:,:]
-    if test == True:
+    lat        = grid.variables['geolat'][:,:];
+    lon        = grid.variables['geolon'][:,:];
+    
+    if test:
         ice_frac  = PISM_data.variables['mask'][:,:];
         ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0;
     else:
@@ -264,7 +265,7 @@ if __name__ == "__main__":
                     chng_mask[i,j]  = 1;
                     
     # Write change mask to netCDF
-    if test == True:
+    if test:
         id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')
     else:
         id = CDF('dir', 'w')

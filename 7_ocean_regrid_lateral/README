@@ -51,6 +51,8 @@ So:
   total enthalpy  = grid cell area * ((mass of ice/m2  * cell ice frac) * 1/no K levels) * enthalpy of ice
 sum_enth_ice(i,j) = (G%areaT(i,j)  * ((mH_ice(i,j,k)*part_sz(i,j,k))    * I_Nk))         * heat_ice(i,j,k,m)
 
+In the restart, energy for ice/snow is stored as enthalpy with units J/kg, which we can convert simply to J.
+
 In the ocean it's a little simpler...
 
       var we want * vertical grid to kg conversion * cell layer thick  * gridcell area (T) * ocean mask
@@ -58,15 +60,37 @@ In the ocean it's a little simpler...
 sum = var(i,j,k)  * ((GV%H_to_kg_m2                * h(i,j,k))         * (G%areaT(i,j)     * G%mask2dT(i,j)))
 
 
+ - Be aware that the variable part_size has 6 k-levels, while there are only 5 ice categories. The 1st k-level appears to represent % open ocean, such that all levels add up to 1. Therefore, when reading in part_size, import only levels 2:6.
 
+ - When adding mass and tracers to halo cells, there is a consideration regarding situations when larger masses are redistributed (eg: when land ice extends over ocean, and suddenly several km of ocean are land). How do we sensibly redistribute this? We can't simply dump it all in the top layer. Perhaps it is smart to calculate the delta h for each halo cell, then divide this over the top n k levels, ensuring that each level grows by no more than Xm.
 
+ - When adding mass to cells, weighting is first calculated for each depth level (ie: each z level makes up some % of the total column depth). This is done at the start of the script and *not* re-calculated even though h values will change during redistribution, because their proportional sizes should remain the same.
+
+ - Important consideration: By changing the h of layers when redistributing mass, we are increasing the cell's volume, and therefore inadvertently creating energy/ salt. A subroutine needs to be written that corrects this after mass redistribution is done. This can be done with T2 = m1T1/m2
+
+ - Challenge: how to redistribute heat and salt. In the sea ice model, heat is stored as enthalpy in the restart, while in the MOM restart, it is stored as potential temperature.
+
+ Apparently we can calculate total Heat energy in a grid cell of water the following way (from MOM_sum_ouput.F90, line 675):
+
+ Temp_int(i,j) = Temp_int(i,j) + (tv%C_p * tv%T(i,j,k)) * &
+                      (h(i,j,k)*(H_to_kg_m2 * areaTm(i,j)))
+
+ Specifically, Heat = Heat_capacity * Temp * volume * H_to_kg conversion factor
+
+ We can use Q = mcT to then add this energy back into other grid cells (where Q = Heat, m = mass and c = the heat capacity) 
+
+ -- Note C_P = 3925.0 J/K/kg in our runs --
 
 To Do:
+Include (optional?) diagnostic ouput including a map of all halos for all change points (perhaps split into two layers - one for halos where mass is added, and one for where it's removed.)
+
+Create a cut-off threshhold for how deep a cell can be when we initialise it as ocean? Say, no more than 30m? This can then be gradually equilibrated over following restarts.
+
+Remove checksums from old restarts (or disable writing of restart checksums? I think this is an option)
+
+Create a script after redistribution etc is complete that performs a series of checks, including for conservation.
 
 ###DONE###
 Create a function like ave_eta, but that is more flexible. So, it can calculate the halo-mean of ANY field, rather than just eta specifically.
 Or, simply make it 'halo_calc' and add in options for means or sums etc.
 
-Include (optional?) diagnostic ouput including a map of all halos for all change points (perhaps split into two layers - one for halos where mass is added, and one for where it's removed.)
-
-leaving fprecip and lprecip out of the mass calculation for ice restart. Perhaps we need to redist. these variables too?
