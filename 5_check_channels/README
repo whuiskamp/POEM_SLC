@@ -1,0 +1,6 @@
+This script will, broadly speaking check the new bathymetry/ land sea mask for consistency, ensuring the next model run will be numerically stable. 
+
+This includes checks for:
+
+- isolated ocean cells and inland seas/lakes
+- subgrid-scale channels that should be open/ closed at certain time periods (this is specific to LGM runs, whereas at all other times, existing channels should suffice, so long as the cells they connect do not dry out).

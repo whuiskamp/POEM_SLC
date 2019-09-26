@@ -1,4 +1,5 @@
-# This script re-distributes mass and tracers to/from ocean cells are either created or removed 
+# This script re-distributes mass and tracers to/from ocean cells are either created or removed
+#
 # This script requires the following inputs:
 #  - MOM6 restart file
 #  - SIS2 restart file
@@ -11,7 +12,9 @@
 # 1: A halo is created around the cell and a check is performed to ensure that
 #    the halo is large enough (eg: 10x surface area of target cell).
 # 2: Mass and tracers to be created/removed calculated from target cell
-# 3: Mass and tracers redistributed to/from halo cells (weighted by cell area)
+# 3: Mass redistributed to/from halo cells (weighted by cell area)
+# 4: Correction applied to halo cells after mass redist. to ensure conservation
+# 5: Tracers redistributed (weighted by cell area)
 # 4: Once all cells have been altered, checks are performed to ensure no 
 #    unnaturally large gradients in SSH or tracers.
 # (5): Where such gradients exist, smooth them.
@@ -19,7 +22,7 @@
 # This script requires the following functions defined in 'chk_water_col.py':
 #   - get_halo; halo_eta; calc_coast
 # 
-# At this point in time, this script will only redistribute mass, energy and salt!
+# At this point in time, this script will only redistribute mass, energy and salt
 # If additional tracers are required, this will need to be implemented.
 
 import subprocess
@@ -77,18 +80,34 @@ def h2vgrid(delh,h):
     #          h - h field from restart
     #     h_lvls - Num. k levels from redist_mass (global var.)
     #     wght   - Weighting for the addition of mass to each cell (global var.)
-    # Out: new_h - updated h grid with redistributed mass
+    # Out: newh - updated h grid with redistributed mass
     newh = copy.deepcopy(h);
     
-    for i in range(delh[0]):
-        for j in range(delh[1]):
-            if ~np.isnan(delh[i,j]):
+    for i in range(delh.shape[0]):
+        for j in range(delh.shape[1]):
+            if ~np.isnan(delh.data[i,j]):
                 if delh[i,j] <= 1:
                     newh[i,j] = h[0,i,j]+delh[i,j]
                 else:
-                    for k in h_lvls:
-                        new_h[k,i,j] = h[k,i,j]+(delh[i,j] * wght[k,i,j])
+                    for k in h_lvls-1:
+                        newh[k,i,j] = h[k,i,j]+(delh[i,j] * wght[k,i,j])
     return newh
+
+def tracer_correct(h,newh):
+    # This function corrects tracer concentrations in cells where h levels have
+    # been changed due to an addition/ removal of mass to avoid non-conservation 
+    # of tracers. At the moment, only temp. and salt are considered.
+    # In:     h - old h field from before h was altered for this cell
+    #      newh - Altered h field, post mass redistribution.
+    #    o_temp - ocean pot. temp. (global var)
+    #    o_salt - ocean salinity (global var)
+    # Out: new_t - corrected temperature field
+    #      new_s - corrected salinity field
+    m_ratio = h/newh;
+    new_s   = m_ratio*o_salt
+    new_t   = m_ratio*o_temp
+    
+    return new_t, new_s
 
 def redist_mass(row,col):
     # This function assumes the global variables chng_mask, h_size_mask,
@@ -109,22 +128,29 @@ def redist_mass(row,col):
             ice_mass = ice_mass + h_ice[i,row,col]*cell_area[row,col]*ice_frac[i,row,col]; 
             sno_mass = sno_mass + h_sno[i,row,col]*cell_area[row,col]*ice_frac[i,row,col];
         # Ocean model
-        h_cell     = h_oce[:,row,col];
-        h_sum      = h_cell.sum(0);                       # All h levels exist at every point, just very small
-        sea_mass   = h_sum*cell_area[row,col];
+        h_cell          = h_oce[:,row,col];
+        h_sum           = h_cell.sum(0);                       # All h levels exist at every point, just very small
+        sea_mass        = h_sum*cell_area[row,col];
         # Total
-        tot_mass   = ice_mass + sno_mass + sea_mass;
+        tot_mass        = ice_mass + sno_mass + sea_mass;
     # 3. Redistribute mass to halo cells
-        delta_mass = c_wgts*tot_mass
-        delta_h    = delta_mass/cell_area
-        newh = h2vgrid(delta_h,h_oce);
+        delta_mass      = c_wgts*tot_mass           # mass going to each halo cell
+        delta_h         = delta_mass/cell_area      # converted to change in h thickness
+        newh            = h2vgrid(delta_h,h_oce);   # Apply del h to each depth level in halo
         
+    # 4. Correct tracer concentrations for change in h thickness
+        o_temp, o_salt = tracer_correct(h_oce,newh) # This alters exising tracer fields and returns them
+    # 5. Remove ocean cell from h field
+        newh[:,row,col] = 0.001;                    # Remove mass from cell and set layers to be land
     elif chng_mask(row,col) == 1: # Filling a cell (land -> ocean)
         # Check surrounding SSH
         
         # Subtract from topog depth, then multiply by cell area
         
         # Create new water column with default z levels
+        
+        # Make new, updated h field the default h field (this will always have
+        # max # nevels, but some will simply be insignificantly small in thickness)
     return
 
 def redist_tracers(row,col,tracer):
@@ -137,7 +163,9 @@ def redist_tracers(row,col,tracer):
     # e_ice/sno
     return
     
-def chk_grads():
+def chk_ssh():
+    # This function checks for sea surface height gradients after redistribution
+    # of mass and tracers between ocean cells. 
     
     return
     

@@ -150,18 +150,21 @@ def calc_coast(omask):
     # calculates whether an ocean cells is a coastal cell and 
     # creates a mask. Coastal cells are 1, all others are 0.
     # Input: ocean mask file
-    coast_mask = np.full(omask.shape,np.nan)
-    for i in range(omask[0]):
-        for j in range(omask[1]):
-            if omask[i,j] == 1:
-                coast_mask[i,j] = check_neighbour(omask,i,j)
+    coast_mask = np.full(omask.shape,0)
+    for i in range(omask.shape[0]):
+        for j in range(omask.shape[1]):
+            if omask[i,j] == 0:
+                coast_mask[i,j] = check_neighbour(omask,i,j,1)
     return coast_mask
                 
-def check_neighbour(data,row,col):
-    # checks data at [i,j] and returns true if any adjacent cell is masked
+def check_neighbour(data,row,col,flag):
+    # checks data at [i,j] and returns true if any adjacent cell fulfills a criteria
     # (ie, has value 0 in array)
     # We are assuming that the data being input is output from a GFDL MOM model
     # with a tripolar grid.
+    data = np.around(data) # Values in omask are inexact 64bit floats
+    criteria = False
+    
     col_p1 = col+1
     col_m1 = col-1
     row_p1 = row+1
@@ -176,25 +179,21 @@ def check_neighbour(data,row,col):
     if row_m1 < 0:
         row_m1 = 0;
         
-    if data[row,col_p1] == 0 or data[row,col_m1] == 0 or data[row_m1,col] == 0:
-        land = True
-    else: 
-        land = False
-    
+    if data[row,col_p1] == flag \
+        or data[row,col_m1] == flag \
+        or data[row_m1,col] == flag:
+        criteria = True
     # If we're in the top row, the row_p1 cell is on the other side of the polar fold.
     # This means it will be the same top row, but in a mirrored column.
     if row_p1 == data.shape[0]:
-        col_f = 199 - col
-        if data[row,col_f] == 0:
-            land = True
-        else:
-            land = False
-    elif data[row_p1,col] == 0:
-            land = True
-    else:
-        land = False
+        col_f = 119 - col
+        if data[row,col_f] == flag:
+            criteria = True
+    elif data[row_p1,col] == flag:
+         criteria = True
+    
         
-    return land
+    return criteria
 
 ################################# Main Code ###################################
 
@@ -203,6 +202,7 @@ if __name__ == "__main__":
     test = True # We'll use different datasets while running tests
     if test:
         new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
+        ctrl_bathy= CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
         MOM6_rest = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/history/MOM6_2019_04_25_11_05_29/RESTART/MOM.res.nc','r')
         PISM_data = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
         Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
@@ -238,6 +238,9 @@ if __name__ == "__main__":
     ave_eta[o_mask==0]  = np.nan;  # Change land to NaN
     eta[o_mask==0]      = np.nan   # Change land to NaN
     
+    # Identify coastal cells
+    coast = calc_coast(o_mask)
+        
     # Check 1 Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
     for i in range(depth.shape[0]):
@@ -264,6 +267,11 @@ if __name__ == "__main__":
                     o_mask_new[i,j] = 1;
                     chng_mask[i,j]  = 1;
                     
+    # Check 4: Have cells become ocean due to sea level rise?
+    
+    
+    
+    
     # Write change mask to netCDF
     if test:
         id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')
