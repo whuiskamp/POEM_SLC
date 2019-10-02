@@ -32,6 +32,7 @@ import os
 import numpy as np
 import copy
 import time
+import math
 #import matplotlib.pyplot as plt
 import argparse
 from netCDF4 import Dataset as CDF
@@ -97,10 +98,10 @@ def tracer_correct(h,newh):
     # This function corrects tracer concentrations in cells where h levels have
     # been changed due to an addition/ removal of mass to avoid non-conservation 
     # of tracers. At the moment, only temp. and salt are considered.
-    # In:     h - old h field from before h was altered for this cell
-    #      newh - Altered h field, post mass redistribution.
-    #    o_temp - ocean pot. temp. (global var)
-    #    o_salt - ocean salinity (global var)
+    # In:      h - old h field from before h was altered for this cell
+    #       newh - Altered h field, post mass redistribution.
+    #     o_temp - ocean pot. temp. (global var)
+    #     o_salt - ocean salinity (global var)
     # Out: new_t - corrected temperature field
     #      new_s - corrected salinity field
     m_ratio = h/newh;
@@ -110,13 +111,29 @@ def tracer_correct(h,newh):
     return new_t, new_s
 
 def redist_mass(row,col):
-    # This function assumes the global variables chng_mask, h_size_mask,
-    # cell_area (tcells from ocean) as well as all relevant fields from 
-    # ice and ocean restarts. In the process of changing h of halo cells, 
-    # a correction is applied to tracers.
-    # h_ice/sno = ice/snow kg/m2; ice_frac = fraction of cell covered in ice
-    # h_oce = layer thickness of ocean cells m, cell_area = area of ocean cells m2
+    # This function redistributes mass between a target cell and a series of halo
+    # cells during the process of creating or removing ocean cells.
     # 
+    # In: chng_mask (gloabal var)        - Mask indicating if cell is to change 
+    #                                      from land>ocean or vice versa (1 or -1)
+    #      h_size_mask (gloabal var)      - Halo size for cell to be altered (radius in # of cells)
+    #      h_oce (global var)             - Ocean vertical layer thickness (m)             
+    #      cell_area (global var)         - Tracer cell area from ocean model (m2)
+    #      depth (global var)             - Updated ocean cell depth (m)
+    #      h_ice (global var)             - Ice mass (kg/m2)
+    #      ice_frac (global var)          - Ocean ice fraction
+    #      h_sno (global var)             - Snow mass (kg/m2)
+    #      o_temp (global var)            - Ocean potential temp. (degC)
+    #      o_salt (global var)            - Ocean salinity (ppt)
+    # Out: new_h                          - Updates ocean vertical layer thickness (m)
+    #      o_temp                         - Updated temp. field (not explicitly returned)
+    #      o_salt                         - Updated salinity field (not explicitly returned)
+    #     
+    # In the process of changing h of halo cells, a correction is applied to 
+    # tracers to avoid spurious creation/ removal of energy/ salt 
+    # (and later, other relevant tracers).
+    # 
+    
     size         = h_size_mask[row,col].astype(int);      # Def. halo radius
     c_wgts, halo = cell_weights(row,col,size);            # Get weights for re-distribution
     ice_mass = 0; sno_mass = 0;                           # Initialise remaining vars
@@ -129,7 +146,7 @@ def redist_mass(row,col):
             sno_mass = sno_mass + h_sno[i,row,col]*cell_area[row,col]*ice_frac[i,row,col];
         # Ocean model
         h_cell          = h_oce[:,row,col];
-        h_sum           = h_cell.sum(0);                       # All h levels exist at every point, just very small
+        h_sum           = h_cell.sum(0);                  # All h levels exist at every point, just very small
         sea_mass        = h_sum*cell_area[row,col];
         # Total
         tot_mass        = ice_mass + sno_mass + sea_mass;
@@ -144,14 +161,47 @@ def redist_mass(row,col):
         newh[:,row,col] = 0.001;                    # Remove mass from cell and set layers to be land
     elif chng_mask(row,col) == 1: # Filling a cell (land -> ocean)
         # Check surrounding SSH
-        
+        eta_mean = halo_eta(eta,row,col);
         # Subtract from topog depth, then multiply by cell area
-        
+        new_h = eta_mean + depth(row,col);
         # Create new water column with default z levels
         
         # Make new, updated h field the default h field (this will always have
         # max # nevels, but some will simply be insignificantly small in thickness)
     return
+
+def newcell(hsum):
+    # This function initialises a new ocean cell of depth 'hsum' and discretises
+    # it into defualt h layers, as defined by the models v-grid
+    # In: hsum     - Total depth of new water column (excluding 'land depth'
+    #                where land has h of 0.001m)
+    #     vgrid    - The default model vertical grid spacing (m)
+    #
+    data  = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
+    vgrid = data.variables['dz'][:];
+    n_lvls = 0;
+    tmp = hsum;
+    for i in range(vgrid.shape[0]):
+        tmp -= vgrid[i]
+        n_lvls += 1;
+        if tmp <= 0:
+            break
+        
+    h = np.full(28, 0.001)
+    if n_lvls == 1:
+        h = hsum
+    else:
+        for i in range(0,n_lvls-1):
+            h[i] = vgrid[i]
+        resid = sum(vgrid[0:n_lvls]) - hsum # some frac of the lowest gridcell is land
+        h[n_lvls-1] = vgrid[n_lvls-1] - resid
+    
+    # Run check to make sure operation worked correctly
+    if math.floor(sum(h)) != hsum:
+        raise ValueError(str('Water column not properly discretised. Total depth is '+str(sum(h)) \
+                             + ', where it should be '+str(hsum)))
+    
+    return h
 
 def redist_tracers(row,col,tracer):
     # Redistributes energy and salinity only at this point.
@@ -201,15 +251,15 @@ if __name__ == "__main__":
     e_sno           = SIS2_rest.variables['enth_snow'][0,:,:,:,:];   # Enthalpy of sea ice in J
     cell_area       = grid.variables['Ah'][:,:];                     # Area of h (tracer) cells
     h_oce           = MOM6_rest.variables['h'][0,:,:,:].data;        # Ocean layer thickness
-    o_temp          = MOM6_rest.variables['Temp'][0,:,:,:].data;     # Ocean potential temperature (degC)
+    o_temp          = MOM6_rest.variables['Temp'][0,:,:,:].data;     # Ocean potential temperature (deg C)
     o_salt          = MOM6_rest.variables['Salt'][0,:,:,:].data;     # Ocean salinity (ppt)
     o_mask_new      = Omask.variables['mask'][:,:];                  # Updated ocean mask
     
     # Variable pre-processing
     h_sum           = np.sum(h_oce,0);                               # Depth of water column (NOT depth of topography)
     tmp             = copy.deepcopy(h_oce);                          # Dummy variable
-    tmp             = np.where(tmp>1, tmp, np.nan);                  # While all layers always exist, we only want them if they have 
-    h_lvls          = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers)
+    tmp             = np.where(tmp>.01, tmp, np.nan);                # While all layers always exist, we only want them if they have 
+    h_lvls          = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers, defined has having h > 0.001)
     wght            = np.full(h_oce.shape,np.nan)                    # Cell weights for mass redistribution
     for i in range(h_lvls.shape[0]):                                 # we add mass to a layer proportional to its thickness
         for j in range(h_lvls.shape[1]):

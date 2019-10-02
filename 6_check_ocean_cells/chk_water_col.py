@@ -218,6 +218,7 @@ if __name__ == "__main__":
     
     # Extract/ define variables
     depth      = new_bathy.variables['depth'][:,:]; new_bathy.close()
+    ctrl_depth = ctrl_bathy.variables['depth'][:,:]; new_bathy.close()
     h          = MOM6_rest.variables['h'][0,:,:,:];
     ave_eta    = MOM6_rest.variables['ave_ssh'][0,:,:];
     eta        = MOM6_rest.variables['sfc'][0,:,:];
@@ -258,20 +259,15 @@ if __name__ == "__main__":
                 depth[i,j]      = 0;
                 chng_mask[i,j]  = -1;
         
-    # Check 3: Have cells become ocean due to receding land ice?    
+    # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(depth.shape[0]):
         for j in range(depth.shape[1]):
             if ice_frac[i,j] <= 0.3 and o_mask[i,j] == 0 and depth[i,j] >= 5:
-                eta_mean = halo_eta(eta,j,i);
-                if eta_mean + depth[i,j] > 2:
+                eta_mean = halo_eta(eta,i,j);
+                if eta_mean + depth[i,j] > 2: # optionally add: and coast[i,j] == 1: 
                     o_mask_new[i,j] = 1;
                     chng_mask[i,j]  = 1;
                     
-    # Check 4: Have cells become ocean due to sea level rise?
-    
-    
-    
-    
     # Write change mask to netCDF
     if test:
         id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')

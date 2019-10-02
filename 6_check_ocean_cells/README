@@ -11,6 +11,7 @@ Issue 2: Our grid is of course zonally re-entrant and this should be accounted f
 Issue 3: Function will be written so that the radius (in cells) of the halo can be defined. There should be another input which describes a 
 		 ratio between the cell-size of the target/destination grid cell and the halo cells. For example, if a cell is in an embayment or coastal corner, the combined area of the halo cells may not be sufficiently large. A good target value may be that the sum of halo cells surface area must be equal to 10x the area of the target cell.
 		 This ratio criteria should be checked either within the function itself and if it is not met, the radius expands by 1 and the process is re-run.
+###Implemented###
 
 
 
@@ -27,3 +28,5 @@ Create universal variables for ncols and nrows in the data we are using, so I do
 Output file should not only have the change mask, but also any other field that needed to be changed (such as depth, omask etc or perhaps just delta versions of these fields). Should probably also assign lat/lon to each variable.
 
 Create a list of variables and their descriptions at the start of the file (?)
+
+Currently, to create an ocean cell, the tool simply checks: that icefrac is less than 0.3 and that relative sea level is greater than 2m. It is worth testing later if we should include the criteria that only coastal cells may become ocean.
