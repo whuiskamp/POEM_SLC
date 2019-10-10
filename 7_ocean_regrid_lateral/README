@@ -28,7 +28,7 @@ ice_bulk_salinity is also set, defaults to 4g/kg but seems to be set to 5 in our
 
 In the SIS_transport.F90 code, there are two subroutines (get_total_amounts and get_total_enthalpy) that calculate sum values for each grid cell in order to check for conservation. Use this to see how variables are treated/ calculated.
 
-For eg: total mass and enthalpy for ice at each grid cell is calculated in the following way:
+For eg: total mass and enthalpy for ice and snow at each grid cell is calculated in the following way:
 
   total mass     =  grid cell area * cell ice frac  * mass of ice/m2
 sum_mca_ice(i,j) =  G%areaT(i,j)   * (part_sz(i,j,k)* mH_ice(i,j,k))
@@ -36,14 +36,14 @@ sum_mca_ice(i,j) =  G%areaT(i,j)   * (part_sz(i,j,k)* mH_ice(i,j,k))
 Enthalpy is a bit trickier:
 
 I_Nk = 1.0 / IG%NkIce		   nkIce = number of vertical layers in sea ice	
-do m=1,IG%NkIce;               m loops through z levels of ice (we have 4)
-	do k=1,IG%CatIce;		   k loops through categories of ice (we have 5)
+do m=1,IG%NkIce;           m loops through z levels of ice (we have 4)
+	do k=1,IG%CatIce;		     k loops through categories of ice (we have 5)
 		do j=jsc,jec;
 			do i=isc,iec
     			sum_enth_ice(i,j) = sum_enth_ice(i,j) + (G%areaT(i,j) * &
               ((mH_ice(i,j,k)*part_sz(i,j,k))*I_Nk)) * heat_ice(i,j,k,m)
 			enddo;
-	    enddo; 
+	  enddo; 
 	enddo;
 enddo
 
@@ -90,7 +90,51 @@ Remove checksums from old restarts (or disable writing of restart checksums? I t
 
 Create a script after redistribution etc is complete that performs a series of checks, including for conservation.
 
-###DONE###
-Create a function like ave_eta, but that is more flexible. So, it can calculate the halo-mean of ANY field, rather than just eta specifically.
-Or, simply make it 'halo_calc' and add in options for means or sums etc.
 
+This is the routine that outputs the stocks at the end of the run.
+
+kg_H_Nk = kg_H / NkIce
+case (ISTOCK_HEAT)
+      value = 0.0
+        do k=1,ncat ; do j=jsc,jec ; do i=isc,iec
+          part_wt = (G%areaT(i,j)*G%mask2dT(i,j)) * IST%part_size(i,j,k)
+          if (part_wt*IST%mH_ice(i,j,k) > 0.0) then
+            value = value - (part_wt * (kg_H * IST%mH_snow(i,j,k))) * &
+                Energy_melt_enthS(IST%enth_snow(i,j,k,1), 0.0, IST%ITV)
+            do m=1,NkIce
+              value = value - (part_wt * (kg_H_Nk * IST%mH_ice(i,j,k))) * &
+                  Energy_melt_enthS(IST%enth_ice(i,j,k,m), IST%sal_ice(i,j,k,m), IST%ITV)
+            enddo
+          endif
+        enddo ; enddo ; enddo
+      endif
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
+!> energy_melt_enthS returns the energy needed to melt a given snow/ice
+!!      configuration, in J kg-1.
+function energy_melt_enthS(En, S, ITV) result(e_to_melt)
+  real, intent(in) :: En !< The ice enthalpy, in enthalpy units (often J/kg)
+  real, intent(in) :: S  !< The ice bulk salinity in g/kg
+  type(ice_thermo_type), intent(in) :: ITV !< The ice thermodynamic parameter structure.
+
+  real :: e_to_melt  !< The energy required to melt this mixture of ice and brine
+                     !! and warm it to its bulk freezing temperature, in J kg-1.
+
+  e_to_melt = ITV%enth_unit * (enthalpy_liquid_freeze(S, ITV) - En)
+
+end function energy_melt_enthS
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
+!> enthalpy_liquid_freeze returns the enthalpy of liquid water at the freezing
+!!    point for a given salinity.
+function enthalpy_liquid_freeze(S, ITV)
+  real, intent(in)  :: S  !< The ice bulk salinity in g/kg
+  type(ice_thermo_type), intent(in) :: ITV !< The ice thermodynamic parameter structure.
+  real :: enthalpy_liquid_freeze
+
+  enthalpy_liquid_freeze = ITV%enth_unit * &
+    (ITV%Cp_water*(ITV%dTf_dS*S) + ITV%ENTH_LIQ_0)
+
+end function enthalpy_liquid_freeze
+
+Where enth_unit = 1.0, enth_liq_0 = 0.0, dTf_dS = -0.054 (from SIS param file), Cp_water = 4200 (from SIS param file)
