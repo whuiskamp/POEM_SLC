@@ -138,3 +138,8 @@ function enthalpy_liquid_freeze(S, ITV)
 end function enthalpy_liquid_freeze
 
 Where enth_unit = 1.0, enth_liq_0 = 0.0, dTf_dS = -0.054 (from SIS param file), Cp_water = 4200 (from SIS param file)
+kg_H = 1 (from SIS param file H_TO_KG_M2)
+
+For order of operations, redistribution of tracers needs to occur first. Otherwise, if mass is done first, we need to keep track of both the old and new 'h' fields.
+
+Furthermore, a separate ocean mask should be created specifically for the get_halo function which prevents the removal/ addition of mass and tracers from cells that have already been emptied. This still needs to be done. New land cells should be masked out, but cells that will become ocean should remain land to avoid water being added to them before they can be initialised as ocean.
