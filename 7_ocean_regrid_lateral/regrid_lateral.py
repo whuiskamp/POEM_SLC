@@ -33,6 +33,7 @@
 import subprocess
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/6_check_ocean_cells')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/7_ocean_regrid_lateral')
 import os
 import numpy as np
 import copy as cp
@@ -44,6 +45,7 @@ import argparse
 from netCDF4 import Dataset as CDF
 # Custom functions
 from chk_water_col import get_halo, fold_cells, norm_cells
+from SIS2_funcs import sum_ice_enth
 
 __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2019"
@@ -104,8 +106,8 @@ def h2vgrid(delh,h):
     # In:   delh - change in mass (h) for this gridcell 
     #          h - h field from restart
     #     h_lvls - Num. k levels from redist_mass (global var.)
-    #     wght   - Weighting for the addition of mass to each cell (global var.)
-    # Out: newh - updated h grid with redistributed mass
+    #       wght - Weighting for the addition of mass to each cell (global var.)
+    # Out:  newh - updated h grid with redistributed mass
     newh = cp.deepcopy(h);
     
     for i in range(delh.shape[0]):
@@ -296,20 +298,26 @@ def redist_tracers(row,col,tracer=''):
     size         = h_size_mask[row,col].astype(int);      # Def. halo radius
     c_wgts, halo = cell_weights(row,col,size,o_mask_new); # Get weights for re-distribution
     sum_enth_ice = 0; sum_enth_sno = 0; I_Nk = 1/e_ice.shape[0];
-    if tracer == 'temp':
-        # Define variables
+    
+    # 1. Are we filling or emptying a cell?
+    if chng_mask[row,col] == -1: # Emptying a cell (ocean -> Land)
+        # 1.1. Calculate the tracer to remove from the cell
+        if tracer == 'temp':
+        # 1.2 Define variables
         global o_temp, e_ice, e_sno, ice_frac, h_ice, h_sno
         # Save old fields for consistency checks
         o_temp_old = cp.deepcopy(o_temp); e_ice_old = cp.deepcopy(e_ice);
         e_sno_old = cp.deepcopy(e_sno)
-        # Sum enthalpy in sea ice and snow (the latter only has one layer) - During test, should equal -3.144585077871032E+21 across whole domain
-        sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac)
+        # 1.3 Sum enthalpy in sea ice and snow (the latter only has one layer) - During test, should equal -3.144585077871032E+21 across whole domain
+        ice_tot = sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice)
         
-        # Sum energy in sea water
-    
+        # 1.4 Sum energy in sea water
         sum_enth_oce = sum_ocean_enth(row,col)
-                      
-        total_heat = sum_enth_oce + tot_ice 
+        tot_heat = sum_enth_oce + tot_ice 
+        
+        # 1.5 Calculate how much energy each halo cell recieves 
+        delta_heat      = c_wgts*tot_heat           # energy going to each halo cell
+        o_temp          = heat2cell(delta_heat,o_temp)
 
                   
     if debugging == True:
@@ -336,6 +344,22 @@ def redist_tracers(row,col,tracer=''):
     
     return
     
+def heat2cell(delta_E,T):
+    # This function adds or removes energy to/from a grid cell and updates the 
+    # temperature field of the water column. Currently, the approach is to spread
+    # the energy change over the entire water column, minimising the change in
+    # T in any one layer.
+    # In: delta_E     - The energy being added/removed from a series of halo cells 
+    #           T     - The temperature field to be altered
+    #   cell_area     - Tracer cell area
+    #       h_oce     - Ocean layer thickness
+    # Out:  T_new     - Updated temperature field
+    
+    
+    
+    
+    return
+
 def chk_ssh():
     # This function checks for sea surface height gradients after redistribution
     # of mass and tracers between ocean cells. 
@@ -379,10 +403,8 @@ if __name__ == "__main__":
     o_temp       = MOM6_rest.variables['Temp'][0,:,:,:].data;             # Ocean potential temperature (deg C)
     o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data.astype(int); # Ocean salinity (ppt)
     o_mask_new   = Omask.variables['mask'][:,:];                          # Updated ocean mask
-    C_P =        = get_param(params_MOM,C_P);                             # The heat capacity of seawater in MOM6
-    H_to_kg_m2   = get_param(params_SIS,H_to_kg_m2);                      # grid cell to mass conversion factor
-    
-    
+    C_P          = get_param(params_MOM,'C_P');                           # The heat capacity of seawater in MOM6 (J kg-1 K-1)
+    H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                    # grid cell to mass conversion factor (1 by default)
     
     # Variable pre-processing
     h_sum        = np.sum(h_oce,0);                               # Depth of water column (NOT depth of topography)

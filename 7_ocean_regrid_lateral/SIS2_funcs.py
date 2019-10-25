@@ -38,7 +38,7 @@ def energy_melt_enthS(En,S):
     
     return e_to_melt
 
-def glob_sum_ice_enth():
+def glob_sum_ice_enth(e_ice,e_sno,ice_frac,cell_area,h_sno,h_ice,S,kg_H,nk_ice):
     # Calculates the global sum of enthalpy for ice and snow in sea ice model
     # This function is taken from the equivalent function ice_stock_pe from 
     # ice_type.F90
@@ -51,7 +51,7 @@ def glob_sum_ice_enth():
     #      S          - Salinity of ice (g/kg). Default is 5.0
     # Out: total      - total energy in cell (J)
     
-    kg_H = 1; kg_H_Nk = kg_H/e_ice.shape[0]; total = 0
+    kg_H_Nk = kg_H/nk_ice; total = 0
     
     for row in range(ice_frac.shape[1]):
         for col in range(ice_frac.shape[2]):
@@ -66,7 +66,7 @@ def glob_sum_ice_enth():
    
     return total
 
-def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac):
+def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice):
     # Calculates the sum of enthalpy for ice and snow in sea ice model in
     # a single grid cell.
     # This function is taken from the equivalent function ice_stock_pe from 
@@ -79,7 +79,7 @@ def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac):
     #      h_ice                  - Ice mass (kg/m2)
     #      S (glob. var.)         - Salinity of ice (g/kg). Default is 5.0
     # Out: total                  - total energy in cell (J)
-    
+    global cell_area, s_ice
     kg_H = 1; kg_H_Nk = kg_H/e_ice.shape[0]; total = 0
     
     for cat in range(e_ice.shape[1]):
@@ -92,7 +92,7 @@ def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac):
    
     return total
 
-def glob_sum_ice_sal(h_ice,ice_frac,S):
+def glob_sum_ice_sal(h_ice,ice_frac,S,kg_H,nk_ice):
     # Calculates the sum of salinity for ice in sea ice model. Note there is 
     # no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 
@@ -101,7 +101,10 @@ def glob_sum_ice_sal(h_ice,ice_frac,S):
     #     cell_area  - Tracer grid cell area, from ocean grid
     #     h_ice      - Ice mass (kg/m2)
     #     S          - Salinity of ice (g/kg). Default is 5.0
-    kg_H = 1; kg_H_Nk = kg_H/e_ice.shape[0]; total = 0
+    #     kg_H       - kg to h grid conversion factor. Default is 1.
+    #     nk_ice     - Number of vertical levels in sea ice field
+    # Out: total     - Total salinity in sea ice
+    kg_H_Nk = kg_H/nk_ice; total = 0
     sal_ice = np.full([4,5,80,120], S)
     for row in range(ice_frac.shape[1]):
         for col in range(ice_frac.shape[2]):
@@ -112,7 +115,7 @@ def glob_sum_ice_sal(h_ice,ice_frac,S):
                         
     return total
 
-def sum_ice_sal(row,col,ice_frac,h_ice,S):
+def sum_ice_sal(row,col,ice_frac,h_ice,S,kg_H,nk_ice):
     # Calculates the sum of salinity for ice in sea ice model. Note there is 
     # no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 
@@ -121,7 +124,10 @@ def sum_ice_sal(row,col,ice_frac,h_ice,S):
     #     cell_area  - Tracer grid cell area, from ocean grid
     #     h_ice      - Ice mass (kg/m2)
     #     S          - Salinity of ice (g/kg). Default is 5.0
-    kg_H = 1; kg_H_Nk = kg_H/e_ice.shape[0]; total = 0
+    #     kg_H       - kg to h grid conversion factor. Default is 1.
+    #     nk_ice     - Number of vertical levels in sea ice field
+    # Out: total     - Total salinity in sea ice
+    kg_H_Nk = kg_H/nk_ice; total = 0
     sal_ice = np.full([4,5,80,120], S)
     
     for cat in range(ice_frac.shape[0]):
