@@ -35,7 +35,6 @@ Notes on idividual tasks
 	  ocean where it should not exist. Comparisons between the old and new topog can also be done.
 	  Are the changes large enough that they won't be wiped out by smoothing/ regridding?
 
-3.3,4,5,6 - Which tool/ software to use to implement conservative redistribution of mass? (cdo? Fortran program?)
-	  variables required: cell_area, h (thickness), T, S, eta
-	  Take/give mass/tracers from a halo of surrounding cells?
-	  What should be the min. depth for a new ocean cell? 1m? 5?
+For future simulations, we will need to construct a second topography file which includes land-surface height values which are missing
+in the model topog file (land values are simply 0). This should be simple in practice, but care will have to be taken that things are not 
+lost/ made incorrect in the regridding process.

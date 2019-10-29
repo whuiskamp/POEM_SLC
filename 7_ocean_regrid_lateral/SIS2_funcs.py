@@ -38,7 +38,7 @@ def energy_melt_enthS(En,S):
     
     return e_to_melt
 
-def glob_sum_ice_enth(e_ice,e_sno,ice_frac,cell_area,h_sno,h_ice,S,kg_H,nk_ice):
+def glob_sum_ice_enth(e_ice,e_sno,ice_frac,cell_area,h_sno,h_ice,s_ice,kg_H,nk_ice):
     # Calculates the global sum of enthalpy for ice and snow in sea ice model
     # This function is taken from the equivalent function ice_stock_pe from 
     # ice_type.F90
@@ -48,7 +48,7 @@ def glob_sum_ice_enth(e_ice,e_sno,ice_frac,cell_area,h_sno,h_ice,S,kg_H,nk_ice):
     #      cell_area  - Tracer grid cell area, from ocean grid
     #      h_sno      - Snow mass (kg/m2)
     #      h_ice      - Ice mass (kg/m2)
-    #      S          - Salinity of ice (g/kg). Default is 5.0
+    #      s_ice      - Salinity of ice (g/kg). Default is 5.0
     # Out: total      - total energy in cell (J)
     
     kg_H_Nk = kg_H/nk_ice; total = 0
@@ -66,7 +66,7 @@ def glob_sum_ice_enth(e_ice,e_sno,ice_frac,cell_area,h_sno,h_ice,S,kg_H,nk_ice):
    
     return total
 
-def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice):
+def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice,kg_H):
     # Calculates the sum of enthalpy for ice and snow in sea ice model in
     # a single grid cell.
     # This function is taken from the equivalent function ice_stock_pe from 
@@ -74,13 +74,13 @@ def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice):
     # In:  e_ice                  - Enthalpy of ice, in enthalpy units (often J/kg)
     #      e_sno                  - Enthalpy of snow, in enthalpy units (often J/kg)
     #      ice_frac               - Fraction of grid cell covered in ice (0-1)
-    #      cell_area (glob. var.) - Tracer grid cell area, from ocean grid
+    #      cell_area              - Tracer grid cell area, from ocean grid
     #      h_sno                  - Snow mass (kg/m2)
     #      h_ice                  - Ice mass (kg/m2)
-    #      S (glob. var.)         - Salinity of ice (g/kg). Default is 5.0
+    #      S                      - Salinity of ice (g/kg). Default is 5.0
     # Out: total                  - total energy in cell (J)
-    global cell_area, s_ice
-    kg_H = 1; kg_H_Nk = kg_H/e_ice.shape[0]; total = 0
+    
+    kg_H_Nk = kg_H/e_ice.shape[0]; total = 0
     
     for cat in range(e_ice.shape[1]):
         part_wt = cell_area[row,col]*ice_frac[cat,row,col]

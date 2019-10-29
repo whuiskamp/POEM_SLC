@@ -64,7 +64,7 @@ def get_param(data,name=''):
     # with it.
     # In:  data - the parameter file (from either MOM6 or SIS2)
     #      name - string naming the variable sought after
-    # Out: val  - The value of paramter 'name'
+    # Out: val  - The value of paramter 'name' as a float
     
     find = re.compile(r"^("+str(name)+")\s\=\s(\S*)")
     
@@ -72,7 +72,8 @@ def get_param(data,name=''):
         out = find.match(line)
         if out:       
             _, val = out.groups()
-    return val
+    out = float(val)
+    return out
 
 def halo_calc(row,col,data,omask,size,operation):
     # calculate the sum or mean of some value in halo cells
@@ -253,15 +254,15 @@ def sum_ocean_enth(row,col, T, h):
     # In:  h                         - Ocean vertical layer thickness (m) 
     #      T                         - Ocean potential temp. (degC)
     #      cell_area (gloabal var)   - Tracer cell area from ocean model (m2)
-    #      C_P                       - Heat capacity of seawater (J/K/kg)
+    #      C_P     (gloabal var)     - Heat capacity of seawater (J/K/kg)
     #      H_to_kg_m2                - Grid cell thickness to mass conversion factor
     #                                  Default is 1 for Boussinesq numerics
     # Out: total                     - Total ocean energy (J)
         
     total = 0
     for i in range(o_temp.shape[0]):
-        total = total + (C_p * T[row,col,i]) * \
-                (h[row,col,i]*(H_to_kg_m2 * cell_area[row,col]))
+        total = total + (C_P * T[i,row,col]) * \
+                (h[i,row,col]*(H_to_kg_m2 * cell_area[row,col]))
     
     return total
                   
@@ -295,29 +296,31 @@ def redist_tracers(row,col,tracer=''):
     # Out: o_temp_new                - Updated temperature field
     #      o_salt_new                - Updated salinity field
     
-    size         = h_size_mask[row,col].astype(int);      # Def. halo radius
-    c_wgts, halo = cell_weights(row,col,size,o_mask_new); # Get weights for re-distribution
-    sum_enth_ice = 0; sum_enth_sno = 0; I_Nk = 1/e_ice.shape[0];
+    size         = h_size_mask[row,col].astype(int);         # Def. halo radius
+    c_wgts, halo = cell_weights(row,col,size,o_mask_redist); # Get weights for re-distribution
+    ice_tot = 0;
     
     # 1. Are we filling or emptying a cell?
     if chng_mask[row,col] == -1: # Emptying a cell (ocean -> Land)
         # 1.1. Calculate the tracer to remove from the cell
         if tracer == 'temp':
-        # 1.2 Define variables
-        global o_temp, e_ice, e_sno, ice_frac, h_ice, h_sno
-        # Save old fields for consistency checks
-        o_temp_old = cp.deepcopy(o_temp); e_ice_old = cp.deepcopy(e_ice);
-        e_sno_old = cp.deepcopy(e_sno)
-        # 1.3 Sum enthalpy in sea ice and snow (the latter only has one layer) - During test, should equal -3.144585077871032E+21 across whole domain
-        ice_tot = sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice)
+            # 1.2 Define variables
+            global o_temp, e_ice, e_sno, ice_frac, h_ice, h_sno
+            # Save old fields for consistency checks
+            o_temp_old = cp.deepcopy(o_temp); e_ice_old = cp.deepcopy(e_ice);
+            e_sno_old = cp.deepcopy(e_sno)
+            # 1.3 Sum enthalpy in sea ice and snow (the latter only has one layer) - During test, should equal -3.144585077871032E+21 across whole domain
+            if np.sum(ice_frac[:,row,col],0) > 0:
+                ice_tot = sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac, \
+                               cell_area,s_ice,H_to_kg_m2)
         
-        # 1.4 Sum energy in sea water
-        sum_enth_oce = sum_ocean_enth(row,col)
-        tot_heat = sum_enth_oce + tot_ice 
+            # 1.4 Sum energy in sea water
+            ocean_tot = sum_ocean_enth(row,col,o_temp,h_oce)
+            tot_heat = ocean_tot + ice_tot
         
-        # 1.5 Calculate how much energy each halo cell recieves 
-        delta_heat      = c_wgts*tot_heat           # energy going to each halo cell
-        o_temp          = heat2cell(delta_heat,o_temp)
+            # 1.5 Calculate how much energy each halo cell recieves 
+            delta_heat      = c_wgts*tot_heat           # energy going to each halo cell
+            o_temp          = heat2cell(delta_heat,o_temp)
 
                   
     if debugging == True:
@@ -354,16 +357,34 @@ def heat2cell(delta_E,T):
     #   cell_area     - Tracer cell area
     #       h_oce     - Ocean layer thickness
     # Out:  T_new     - Updated temperature field
-    
-    
-    
-    
-    return
+    wght = np.full(T.shape,0)
+    for i in range(h_oce.shape[0]):
+        mass[i,:,:] = h_oce[i,:,:] * cell_area
+        wght[i,:,:] = h_oce[i,:,:]/np.sum(h_oce,0)
+        T_new = T[i,:,:] + delta_E*wght[i,:,:]/(mass*C_P)  
+        
+    return T_new
 
-def chk_ssh():
+def chk_ssh(h_sum):
     # This function checks for sea surface height gradients after redistribution
-    # of mass and tracers between ocean cells. 
-    
+    # of mass and tracers between ocean cells. For the moment, if neighbouring cells 
+    # have a SSH difference of 1m or more, they will get flagged.
+    # In:  h_sum       - Total water column height (m)
+    #      bathy       - Ocean bathymetry depth (m)
+    # Out: lrg_grad    - Field indicating which cells have excessive SSH gradients
+    lrg_grd = np.full(h_sum.shape)
+    for i in range(h_sum.shape[0]):
+        for j in range(h_sum.shape[1]-1): # Cells on other side of zonal split handled later
+            if bathy[i,j] != 0 and bathy[i,j+1] != 0:
+                diff_x = abs((h_sum[i,j] - bathy[i,j]) - (h_sum[i,j+1] - bathy[i,j+1]))
+                if diff_x >= 1:
+                    lrg_grd[i,j] = 1
+   for i in range(h_sum.shape[0]-1):
+        for j in range(h_sum.shape[1]):
+            if bathy[i,j] != 0 and bathy[i+1,j] != 0:
+                diff_y = abs((h_sum[i,j] - bathy[i,j]) - (h_sum[i+1,j] - bathy[i+1,j]))
+                if diff_y >= 1:
+                    lrg_grd[i,j] = 1
     return
     
 ################################# Main Code ###################################
@@ -407,7 +428,7 @@ if __name__ == "__main__":
     H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                    # grid cell to mass conversion factor (1 by default)
     
     # Variable pre-processing
-    h_sum        = np.sum(h_oce,0);                               # Depth of water column (NOT depth of topography)
+    h_sum        = np.sum(h_oce,0);                               # Depth of water column (NOT depth of bathymetry)
     tmp          = cp.deepcopy(h_oce);                            # Dummy variable
     tmp          = np.where(tmp>.01, tmp, np.nan);                # While all layers always exist, we only want them if they have 
     h_lvls       = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers, defined has having h > 0.001)
@@ -418,7 +439,10 @@ if __name__ == "__main__":
             for k in range(lvls):
                 wght[k,i,j]= h_oce[k,i,j]/ \
                 h_oce[:h_lvls[i,j],i,j].sum(0)                
+    o_mask_redist = cp.deepcopy(o_mask_new)                       # New ocean calls masked out. We need a seperate ocean mask for the redistribution  
+    o_mask_redist[chng_mask==1] = 0;                              # code, as we cannot allow cells that are yet to be initialised act as halo cells.
     
+        
     # 1: Set up and check halos for all change points, making the halos bigger when required
     # Here size is increased by 1 in the while loop, but that means it will be too big when we 
     # find the correct value. Therefore, when we assign it to h_size_mask, we need to subtract 1 again.
