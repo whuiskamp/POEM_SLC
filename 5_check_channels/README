@@ -4,3 +4,53 @@ This includes checks for:
 
 - isolated ocean cells and inland seas/lakes
 - subgrid-scale channels that should be open/ closed at certain time periods (this is specific to LGM runs, whereas at all other times, existing channels should suffice, so long as the cells they connect do not dry out).
+
+####### Notes #########
+
+Tool should:
+1: Use chng_mask and o_mask to identify newly isolated cells (how?)
+2: Decide if these isolated cells should be filled in or remain small inland seas like the Baltic
+   Criteria would include: # of cells isolated (one should be filled, 4 maybe left alone?), 
+   depth of isolated cells (eg < 100m would be too shallow for such a small body of water),
+
+The Fensoscandian Ice sheet will likely be the trickiest. 
+
+Possible to identify isolated cells by doing a running average of ocean cell counts?
+
+Another way is pixel connectivity. Calculate how many cells this ocean cell is connected to, then compare it to the previous time-slice. If it's drastically reduced, then these cells are now isolated. You could improve computation time by simply setting a cutoff value like 30 or something. The trick would be how to calculate this efficiently.
+
+Start from changed cell - that's the seed. From there you have i,j +- 1. Being a coastal cell, many of these 4 options will be immediately rejected (make conditional on o_mask being 1). The problem arises when we hit open ocean/ cells in contact with many others and the calculation increases exponentially.
+
+http://www.imageprocessingplace.com/downloads_V3/root_downloads/tutorials/contour_tracing_Abeer_George_Ghuneim/ray.html
+
+It would work to implement a square contour tracing algorithm with a Jacob's stopping criterion.
+
+How to code this? 
+
+Init at the point that has become land, if o_mask = 1, turn 'left'
+If this turns out to be the wrong way, try again, but make the init turn 'right'
+
+Implement directional variables for past and future movement. 
+
+The first ocean cell identified
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

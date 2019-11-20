@@ -92,7 +92,7 @@ def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice,kg_H):
    
     return total
 
-def glob_sum_ice_sal(h_ice,ice_frac,S,kg_H,nk_ice):
+def glob_sum_ice_sal(h_ice,ice_frac,S,kg_H,nk_ice,cell_area):
     # Calculates the sum of salinity for ice in sea ice model. Note there is 
     # no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 
@@ -115,7 +115,7 @@ def glob_sum_ice_sal(h_ice,ice_frac,S,kg_H,nk_ice):
                         
     return total
 
-def sum_ice_sal(row,col,ice_frac,h_ice,S,kg_H,nk_ice):
+def sum_ice_sal(row,col,ice_frac,cell_area,h_ice,S,kg_H,nk_ice):
     # Calculates the sum of salinity for ice in sea ice model. Note there is 
     # no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 

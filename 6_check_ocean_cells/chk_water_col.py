@@ -13,7 +13,7 @@
 #          cell is now land).
 # Check 2: Has column thickness decreased enough to dry out the cell?
 #          This is conditional on changes in bathymetry and surrounding SSH.
-# Check 3:          
+# Check 3: Have cells become ocean due to receding land ice or SLR?          
 
 
 ## Import packages ##
@@ -93,17 +93,20 @@ def get_halo(omask, row, col, size):
     
     return halo_mask
 
-def fold_cells(row,col,size):
-    # returns indices of halo cells that sit on the other side of the polar fold
-    # This assumes a grid 120x80 cells in size
-    # Input: col: The column index of the cell around which the halo is created
-    #        row: The row index on the other side of the fold 
-    #        size: The radius of the halo
-    Nrows = 80-row
-    rows =  np.arange(row,80,1)
+def fold_cells(row,col,grid_x,grid_y,size):
+    # This function returns indices of halo cells that sit on the other side of
+    # the polar fold.
+    # In:    col    - The column index of the cell around which the halo is created
+    #        row    - The row index on the other side of the fold
+    #        grid_x - Size of the ocean grid (longitude)
+    #        grid_y - Size of the ocean grid (latitude)
+    #        size   - The radius of the halo (# of gridcells)
+    # Out:   idx    - Index of halo cells on the other side of polar fold
+    Nrows = grid_y-row
+    rows =  np.arange(row,grid_y,1)
     cols = np.arange(col-size,col+size+1,1)
     # Change the indices to refer to the other side of the polar fold
-    cols = 119 - cols
+    cols = (grid_x-1) - cols
     Ncols = cols.shape[0]
     idx = np.full([2,Nrows*Ncols],np.nan) # Create cell index (rows,cols) 
     for i in range(Nrows):    
@@ -113,15 +116,19 @@ def fold_cells(row,col,size):
         
     return idx    
 
-def norm_cells(E_lim,W_lim,S_lim,N_lim):
-    # Returns indices of halo cells that sit on the ocean grid (but not across the polar fold)
-    # Input: The cell limits in each direction (N,S,E,W).
+def norm_cells(E_lim,W_lim,S_lim,N_lim,grid_x):
+    # This function returns indices of halo cells that sit on the ocean grid 
+    # (but not across the polar fold). Remember that in python the grid is upside 
+    # down (South east corner of the map is the 'top left' element of the array)
+    # In:  E(W,S,N)_lim - The cell limits in each direction (N,S,E,W).
+    #      grid_x       - Size of the ocean grid (longitude)
+    # Out: idx          - Index of halo cells
     Nrows = N_lim - S_lim +1; rows = np.arange(S_lim,N_lim+1,1)
     # Account for lon wrap-around
     if W_lim < E_lim:
-        E_cells = 120 - E_lim; 
-        Ncols = W_lim - E_lim +121; cols = np.zeros(Ncols);
-        cols[0:E_cells] = np.arange(E_lim,120,1)
+        E_cells = grid_x - E_lim; 
+        Ncols = W_lim - E_lim + (grid_x+1); cols = np.zeros(Ncols);
+        cols[0:E_cells] = np.arange(E_lim,grid_x,1)
         cols[E_cells:Ncols] = np.arange(0,W_lim+1,1)
     else:
         Ncols = W_lim - E_lim +1; cols = np.arange(E_lim,W_lim+1,1)
@@ -147,9 +154,10 @@ def halo_eta(eta,row,col):
     
     return mean_eta
 def calc_coast(omask):
-    # calculates whether an ocean cells is a coastal cell and 
-    # creates a mask. Coastal cells are 1, all others are 0.
-    # Input: ocean mask file
+    # This function calculates whether an ocean cells is a coastal cell or not 
+    # and creates a mask. Coastal cells are 1, all others are 0.
+    # In:  omask      - ocean mask file
+    # Out: coast_mask - mask of coastal cells
     coast_mask = np.full(omask.shape,0)
     for i in range(omask.shape[0]):
         for j in range(omask.shape[1]):
@@ -158,10 +166,15 @@ def calc_coast(omask):
     return coast_mask
                 
 def check_neighbour(data,row,col,flag):
-    # checks data at [i,j] and returns true if any adjacent cell fulfills a criteria
-    # (ie, has value 0 in array)
-    # We are assuming that the data being input is output from a GFDL MOM model
-    # with a tripolar grid.
+    # This function checks data at [i,j] and returns true if any adjacent cell 
+    # fulfills a criteria (ie, has value 0 in array). It is assumed that the 
+    # data being used is output from a GFDL MOM model with a tripolar grid.
+    # In:  data - The ocean data being checked for a certain value
+    #      row  - y value of latitude (ie: position in array, not latitude)
+    #      col  - x value of longitude
+    #      flag - The value we are checking neighbouring cells for
+    # Out: criteria - Is the check successful. Returns true or false.
+    
     data = np.around(data) # Values in omask are inexact 64bit floats
     criteria = False
     
@@ -186,7 +199,7 @@ def check_neighbour(data,row,col,flag):
     # If we're in the top row, the row_p1 cell is on the other side of the polar fold.
     # This means it will be the same top row, but in a mirrored column.
     if row_p1 == data.shape[0]:
-        col_f = 119 - col
+        col_f = (data.shape[1] -1) - col
         if data[row,col_f] == flag:
             criteria = True
     elif data[row_p1,col] == flag:
@@ -217,13 +230,15 @@ if __name__ == "__main__":
         Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
     
     # Extract/ define variables
-    depth      = new_bathy.variables['depth'][:,:]; new_bathy.close()
+    depth      = new_bathy.variables['depth'][:,:];
     ctrl_depth = ctrl_bathy.variables['depth'][:,:]; new_bathy.close()
     h          = MOM6_rest.variables['h'][0,:,:,:];
     ave_eta    = MOM6_rest.variables['ave_ssh'][0,:,:];
     eta        = MOM6_rest.variables['sfc'][0,:,:];
     lat        = grid.variables['geolat'][:,:];
     lon        = grid.variables['geolon'][:,:];
+    grid_x     = lon.shape[1];
+    grid_y     = lat.shape[0];
     
     if test:
         ice_frac  = PISM_data.variables['mask'][:,:];
@@ -267,6 +282,11 @@ if __name__ == "__main__":
                 if eta_mean + depth[i,j] > 2: # optionally add: and coast[i,j] == 1: 
                     o_mask_new[i,j] = 1;
                     chng_mask[i,j]  = 1;
+     
+    # Finally, we need to make sure our new land-sea mask has not created isolated
+    # cells or inland seas, if so, updated o_mask and chng_mask where required
+    o_mask_new, chng_mask = chk_cells(o_mask_new,chng_mask)               
+                    
                     
     # Write change mask to netCDF
     if test:

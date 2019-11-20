@@ -30,7 +30,7 @@
 # remain land in this mask! This is done to ensure a smoother initialisation of new
 # ocean points.
 
-import subprocess
+import subprocess as sp
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/6_check_ocean_cells')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/7_ocean_regrid_lateral')
@@ -76,8 +76,19 @@ def get_param(data,name=''):
     return out
 
 def halo_calc(row,col,data,omask,size,operation):
-    # calculate the sum or mean of some value in halo cells
-    # returns the ave/sum, the halo mask and the values of the data in the halo
+    # This function calculates the sum or mean of some variable in halo cells
+    # Note: this should NOT be used for tracers, as no consideration is made 
+    # regarding volume of the gridcell/water column.
+    # In:  row       - latitude index
+    #      col       - longitude index
+    #      data      - Data for which to calculate halo values
+    #      omask     - Ocean mask (ocean is 1, land is 0)
+    #      size      - size of the halo in # grid cells
+    #      operation - Sum or mean of halo cells
+    # Out: ave_halo   - Average value for a variable in halo cells
+    #      sum_halo   - Sum of values for a variable in halo cells
+    #      halo       - Mask of the halo
+    #      dat_masked - Returns original data array, but masked with the halo
     halo = get_halo(omask,row,col,size) # Must use *new* omask for the halo calc
     dat_halo = data[halo==True]
     dat_masked = np.full(omask.shape,np.nan)
@@ -90,10 +101,14 @@ def halo_calc(row,col,data,omask,size,operation):
         return ave_halo, halo, dat_masked
     
 def cell_weights(row,col,size,omask):
-    # Calculate the cells weights for redistributing mass and tracers.
+    # This function calculate the cells weights for redistributing mass and tracers.
     # Weights are based on cell area
-    # Size input should be the h_size_mask
-    # Requires global var. cell_area
+    # In:  row       - latitude index
+    #      col       - longitude index
+    #      size      - size of the halo in # grid cells
+    #      omask     - Ocean mask (ocean is 1, land is 0)
+    # Out: c_weight  - Masked array containing weights (summing to 1)
+    #      halo      - The halo for which weights were calculated
     c_weight = np.full(cell_area.shape,np.nan)
     halo_sum,halo,dat_halo = halo_calc(row,col,cell_area,omask,size,'sum');
     c_weight[halo] = dat_halo[halo]/halo_sum
@@ -104,11 +119,11 @@ def h2vgrid(delh,h):
     # ocean cell. When the change in SSH is greater than 1m, mass is added to all 
     # h layers proportional to their existing thickness. It assumes that for a 
     # removal of mass, the delh field should be *negative*.
-    # In:   delh - change in mass (h) for this gridcell 
-    #          h - h field from restart
-    #     h_lvls - Num. k levels from redist_mass (global var.)
-    #       wght - Weighting for the addition of mass to each cell (global var.)
-    # Out:  newh - updated h grid with redistributed mass
+    # In:  delh   - change in mass (h) for this gridcell 
+    #      h      - h field from restart
+    #      h_lvls - Num. k levels from redist_mass (global var.)
+    #      wght   - Weighting for the addition of mass to each cell (global var.)
+    # Out: newh   - updated h grid with redistributed mass
     newh = cp.deepcopy(h);
     
     for i in range(delh.shape[0]):
@@ -130,12 +145,12 @@ def tracer_correct(h,newh):
     # This function corrects tracer concentrations in cells where h levels have
     # been changed due to an addition/ removal of mass to avoid non-conservation 
     # of tracers. At the moment, only temp. and salt are considered.
-    # In:      h - old h field from before h was altered for this cell
-    #       newh - Altered h field, post mass redistribution.
-    #     o_temp - ocean pot. temp. (global var)
-    #     o_salt - ocean salinity (global var)
-    # Out: new_t - corrected temperature field
-    #      new_s - corrected salinity field
+    # In:  h      - old h field from before h was altered for this cell
+    #      newh   - Altered h field, post mass redistribution.
+    #      o_temp - ocean pot. temp. (global var)
+    #      o_salt - ocean salinity (global var)
+    # Out: new_t  - corrected temperature field
+    #      new_s  - corrected salinity field
     m_ratio = h/newh;
     new_s   = m_ratio*o_salt
     new_t   = m_ratio*o_temp
@@ -216,12 +231,12 @@ def redist_mass(row,col):
 def newcell(hsum):
     # This function initialises a new ocean cell of depth 'hsum' and discretises
     # it into defualt h layers, as defined by the models v-grid
-    # In: hsum     - Total depth of new water column (excluding 'land depth'
-    #                where land has h of 0.001m)
-    #     vgrid    - The default model vertical grid spacing (m)
+    # In:  hsum     - Total depth of new water column (excluding 'land depth'
+    #                 where land has h of 0.001m)
+    #      vgrid    - The default model vertical grid spacing (m)
     #
-    # Out: h       - The newly created ocean cell, vertically discretised using 
-    #                model's vgrid.
+    # Out: h        - The newly created ocean cell, vertically discretised using 
+    #                 model's vgrid.
     data  = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
     vgrid = data.variables['dz'][:]; 
     n_lvls = 0;
@@ -352,11 +367,11 @@ def heat2cell(delta_E,T):
     # temperature field of the water column. Currently, the approach is to spread
     # the energy change over the entire water column, minimising the change in
     # T in any one layer.
-    # In: delta_E     - The energy being added/removed from a series of halo cells 
-    #           T     - The temperature field to be altered
-    #   cell_area     - Tracer cell area
-    #       h_oce     - Ocean layer thickness
-    # Out:  T_new     - Updated temperature field
+    # In:  delta_E   - The energy being added/removed from a series of halo cells 
+    #      T         - The temperature field to be altered
+    #      cell_area - Tracer cell area
+    #      h_oce     - Ocean layer thickness
+    # Out: T_new     - Updated temperature field
     wght = np.full(T.shape,0)
     for i in range(h_oce.shape[0]):
         mass[i,:,:] = h_oce[i,:,:] * cell_area
@@ -365,7 +380,7 @@ def heat2cell(delta_E,T):
         
     return T_new
 
-def chk_ssh(h_sum):
+def chk_ssh(h_sum): # Unfinished- double check everything
     # This function checks for sea surface height gradients after redistribution
     # of mass and tracers between ocean cells. For the moment, if neighbouring cells 
     # have a SSH difference of 1m or more, they will get flagged.
@@ -391,9 +406,9 @@ def chk_ssh(h_sum):
     
 if __name__ == "__main__":
     # Create new restarts for MOM and SIS
-    subprocess.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc',\
+    sp.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc',\
                    '/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.new.nc'])
-    subprocess.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.nc',\
+    sp.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.nc',\
                    '/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.new.nc'])
     test = True # We'll use different datasets while running tests
     debugging = True # Use for consistency checks in script
@@ -464,7 +479,12 @@ if __name__ == "__main__":
         for j in range(chng_mask.shape[1]):
             if np.isnan(chng_mask[i,j]) == False:
                 redist_tracers[i,j]; newh, o_salt, o_temp = redist_mass[i,j]
-    
+    if debugging == True:
+        err_mass, err_T, err_S = chk_consrv()
+        print('Redistribution of mass and tracers complete.' \
+              'Error in mass   = '+str(err_mass) \
+              'Error in energy = '+str(err_T) \
+              'Error in salt   = '+str(err_S))
     # 3: Write new data to copies of old restarts. Several other variables 
     #    will also need to be ammended.
     
