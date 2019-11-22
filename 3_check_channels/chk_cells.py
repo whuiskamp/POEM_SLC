@@ -23,7 +23,17 @@ def chk_cells(o_mask,chng_mask):
     #      chng_mask - Updated change mask
     grd = o_mask.shape
     
-    
+    for i in range(chng_mask.shape[0]):
+        for j in range(chng_mask.shape[1]):
+            if chng_mask[i,j] == 1 or -1:
+              # For algorithm to work, we must search in both 'directions'.
+              # Try one, then the other.
+              iso_mask = ID_iso_cells(i,j,o_mask,'right',40,grd)
+              if iso_mask == None:
+                  iso_mask = ID_iso_cells(i,j,o_mask,'right',40,grd)
+              # If have isolated cells, determine what to do with them
+              if iso_mask != None:
+                  chng_mask_2, o_mask_2 = fix_iso_cells(iso_mask)
     
     
     return
@@ -67,16 +77,27 @@ def ID_iso_cells(row,col,o_mask,turn1,stop,grd):
     # If count gets too big, we're in open ocean - return nothing.    
     if count == stop: 
         return
-    else:
+    elif 1 in iso_mask:
+        print('Isolated cells found in vicinity of row = '+str(row)+', col = '+str(col))
         return iso_mask
+    else:
+        return
 
-def update_orientation(old_dir,row,col,turn,grd): # Change to just idx?
+def update_orientation(old_dir,row,col,turn,grd):
     # This function computes new indices and directions for the square tracing
     # algorithm using the old direction the tracer is facing as well as whether
     # it now needs to turn 'left' or 'right'. It returns the next grid index
     # for the tracer as well as the new direction it is facing.
     # In:  old_dir - Direction (N,S,E,W) that the tracing algorithm is 'facing'
-    # 
+    #      row     - Latitude index of current grid cell
+    #      col     - Longitude index of current grid cell
+    #      turn    - The direction the tracer will turn for the next step
+    #      grd     - Grid size information (nRows,nCols)
+    # Out: row     - Latitude index of next grid cell
+    #      col     - Longitude index of next grid cell
+    #      new_dir - Direction that the tracing algorithm is 'facing' in next 
+    #                grid cell
+    
     idx = np.full(2,0)
     idx[0] = row; idx[1] = col
     if turn == 'left':
@@ -116,12 +137,23 @@ def update_orientation(old_dir,row,col,turn,grd): # Change to just idx?
     # ... or crossing the polar fold
     if row == grd[1]:
         row = grd[1]-1
-        col =  
+        col = (grd[0]-1)-col
 
      
     return row, col, new_dir
         
-        
+def fix_iso_cells(iso_mask):
+    # This function takes a group of isolated ocean cells, examines their 
+    # collective properties and determines whether or not to leave them alone 
+    # or fill them in.
+    
+    
+    
+    
+    
+    
+    
+    return
       
 test = ID_iso_cells(11,10,o_mask,'right',40,grd)        
 if test is None:     

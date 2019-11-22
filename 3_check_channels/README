@@ -32,7 +32,17 @@ If this turns out to be the wrong way, try again, but make the init turn 'right'
 
 Implement directional variables for past and future movement. 
 
-The first ocean cell identified
+This has mostly all been coded now in chk_cells.py
+
+Next - include contingency for zonall re-entrance and the tripolar grid. Should be easy:
+if col == o_mask.shape[0]:
+	col = 0
+and ...
+if col == -1:
+	col = o_mask.shape[0]
+
+
+
 
 
 

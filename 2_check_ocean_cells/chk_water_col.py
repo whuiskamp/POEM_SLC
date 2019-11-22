@@ -175,7 +175,7 @@ def check_neighbour(data,row,col,flag):
     #      flag - The value we are checking neighbouring cells for
     # Out: criteria - Is the check successful. Returns true or false.
     
-    data = np.around(data) # Values in omask are inexact 64bit floats
+    data = np.around(data) # Values in o_mask are inexact 64bit floats
     criteria = False
     
     col_p1 = col+1
