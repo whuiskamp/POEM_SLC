@@ -18,13 +18,9 @@
 
 ## Import packages ##
 
-import sys
-import os
 import numpy as np
-import copy as cp
 import time
 #import matplotlib.pyplot as plt
-import argparse
 from netCDF4 import Dataset as CDF
 
 __author__ = "Willem Huiskamp"
@@ -140,16 +136,24 @@ def norm_cells(E_lim,W_lim,S_lim,N_lim,grid_x):
            
     return idx
 
-def halo_eta(eta,row,col):
-	# calculates the mean ssh in a halo
-	# around point of interest (i,j) and returns an value at (i,j).
+def halo_eta(row,col,MOM):
+	# This function calculates the mean ssh in a halo
+	# around point of interest (i,j) and returns a value at (i,j).
     # Eta must already have land values set to nan.
-    # Assumes o_mask is a global variable and use of numpy
-    if np.isnan(eta[0,0]) == False:
-        raise ValueError(str('eta not properly formatted. Land = '+str(eta[0,0]) \
+    # In:   eta        - Sea surface height (m)
+    #       row        - Latitude grid index
+    #       col        - Longitude grid index
+    #       o_mask_new - An ocean mask that is updated during the processing 
+    #                    of this code
+    #       MOM - Data structure of MOM restart variables
+    # Out:  mean_eta   - The average sea level height calculated in a halo around
+    #                    cell (row,col)
+    
+    if np.isnan(MOM.eta[0,0]) == False:
+        raise ValueError(str('eta not properly formatted. Land = '+str(MOM.eta[0,0]) \
                              + ' not NaN'))
-    halo = get_halo(o_mask_new,row,col,1)
-    eta_halo = eta[halo==True]
+    halo = get_halo(MOM.o_mask_new,row,col,1)
+    eta_halo = MOM.eta[halo==True]
     mean_eta = np.mean(eta_halo)
     
     return mean_eta
@@ -209,7 +213,7 @@ def check_neighbour(data,row,col,flag):
     return criteria
 
 ################################# Main Code ###################################
-
+def check_water_col(MOM,SIS):
     # Check 1 Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
     for i in range(depth.shape[0]):
