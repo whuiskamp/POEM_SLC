@@ -427,7 +427,7 @@ if __name__ == "__main__":
         
     #### Extract/define variables ####
     chng_mask    = chng_file.variables['chng_mask'][:,:];                 # Mask of cells to change
-    h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                 # Halo size mask
+    h_size_mask  = np.zeros(chng_mask.shape,dtype=int);                   # Halo size mask
     h_ice        = SIS2_rest.variables['h_ice'][0,:,:,:].data;            # Ice thickness
     h_sno        = SIS2_rest.variables['h_snow'][0,:,:,:].data;           # Snow thickness
     ice_frac     = SIS2_rest.variables['part_size'][0,1:6,:,:].data;      # Ice fraction
