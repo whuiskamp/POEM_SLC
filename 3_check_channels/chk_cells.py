@@ -168,7 +168,7 @@ def sides_chk(row,col,data):
     #        col - Longitude index
     #       data - Mask of cells identified by the ID_iso_cells function. Ocean 
     #              cells are marked as 1, land as 0
-    # Out: flag  - When true, these ocean cells can said to be connection.
+    # Out: flag  - When true, these ocean cells can said to be connected.
     #              The opposite is true when false.
     
     # For cells not interacting with the polar fold

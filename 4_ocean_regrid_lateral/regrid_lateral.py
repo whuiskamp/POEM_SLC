@@ -404,7 +404,7 @@ def chk_ssh(h_sum): # Unfinished- double check everything
     
 ################################# Main Code ###################################
     
-if __name__ == "__main__":
+def redist_vals(MOM,SIS):
     # Create new restarts for MOM and SIS
     sp.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc',\
                    '/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.new.nc'])
