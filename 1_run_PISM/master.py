@@ -13,14 +13,14 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channe
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
 import create_data_structs
 import chk_water_col 
-import regrid_lateral 
+from regrid_lateral import get_param
 import chk_cells
 import SIS2_funcs
 
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
     test = True # We'll use different datasets while running tests
-    
+    debugging = True # Activates verbose output and error-checking
     # Read in model files and create data structures
     init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test)
     # Check to see if cells need to change to/from land/ocean

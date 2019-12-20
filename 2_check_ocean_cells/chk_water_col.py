@@ -35,15 +35,20 @@ __status__ = "Prototype"
 
 ############################## Define functions ###############################
 
-def get_halo(omask, row, col, size):
-    # Creates a halo for a grid cell in a 2D array of radius 'size' 
-    # Requires global variable omask
-    grid = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
-    lat = grid.variables['geolat'][:,:]
-    
+def get_halo(MOM,row,col,size,omask):
+    # This function creates a halo for a grid cell defined at [row,col]
+    # in a 2D array of radius 'size' 
+    # In:   MOM      - Data structure containing all ocean restart data
+    #       row      - Latitude index of grid cell
+    #       col      - Longitude index of grid cell
+    #      size      - Radius of halo in gridcells
+    #      grid_x    - Size of the ocean grid (longitude)
+    #      grid_y    - Size of the ocean grid (latitude)
+    # Out: halo_mask - Boolean mask indicating halo cells
+        
     # Define variables
-    halo_mask = np.zeros(omask.shape, dtype=bool)
-    
+    halo_mask = np.zeros([MOM.grid_y,MOM.grid_x], dtype=bool)
+        
     # Identify halo cells
     col_W = col+size
     col_E = col-size
@@ -51,36 +56,36 @@ def get_halo(omask, row, col, size):
     row_S = row-size
     ## correction for domain edges (prevents out of bounds)
     # We have to account for the polar fold at the N Pole.
-    if lat[row,col] > 65.5:
+    if MOM.lat[row,col] > 65.5:
        # If northernmost row is less than 0, it means the cells we want
        # sit on the other side of the polar fold.
-       if row_N > omask.shape[0]-1:
-           fold_row = (omask.shape[0]-1)-(row_N-omask.shape[0])
+       if row_N > MOM.grid_y-1:
+           fold_row = (MOM.grid_y-1)-(row_N-MOM.grid_y)
            # Identify these cells and note them in mask
-           PF_cells = fold_cells(fold_row,col,size).astype(int)
+           PF_cells = fold_cells(fold_row,col,size,MOM).astype(int)
            halo_mask[PF_cells[0,:],PF_cells[1,:]] = True;
                 
            # Now we have fold cells, so set limit to Northern boundary
-           row_N = omask.shape[0]-1
+           row_N = MOM.grid_y-1
        # Now to obtain the indices for those cells on this side of the fold
        # There is no cyclic i boundary in the dipolar NH grid
-       if col_W >= omask.shape[1]:
-           col_W = omask.shape[1]
+       if col_W >= MOM.grid_x:
+           col_W = MOM.grid_x
        if col_E <= 0:
            col_E = 0;
             
     # If we are in the regular grid
     # rightmost column (Westmost)
-    if col_W >= omask.shape[1]-1:
-        col_W = size-(omask.shape[1]-col);
+    if col_W >= MOM.grid_x-1:
+        col_W = size-(MOM.grid_x-col);
     # leftmost column (Eastmost)
     if col_E <= 0:
-        col_E = omask.shape[1]-(size-col);
+        col_E = MOM.grid_x-(size-col);
     # Uppermost row (Southernmost)
     if row_S < 0:
         row_S = 0;
            
-    halo_cells = norm_cells(col_E,col_W,row_S,row_N).astype(int) 
+    halo_cells = norm_cells(col_E,col_W,row_S,row_N,MOM.grid_x).astype(int) 
     # Add halo cells to mask
     halo_mask[halo_cells[0,:],halo_cells[1,:]] = True; 
     # Finally, remove the cell around which the halo is made 
@@ -89,7 +94,7 @@ def get_halo(omask, row, col, size):
     
     return halo_mask
 
-def fold_cells(row,col,grid_x,grid_y,size):
+def fold_cells(row,col,size,MOM):
     # This function returns indices of halo cells that sit on the other side of
     # the polar fold.
     # In:    col    - The column index of the cell around which the halo is created
@@ -97,12 +102,13 @@ def fold_cells(row,col,grid_x,grid_y,size):
     #        grid_x - Size of the ocean grid (longitude)
     #        grid_y - Size of the ocean grid (latitude)
     #        size   - The radius of the halo (# of gridcells)
+    #        MOM    - Data structure containing all ocean restart data
     # Out:   idx    - Index of halo cells on the other side of polar fold
-    Nrows = grid_y-row
-    rows =  np.arange(row,grid_y,1)
+    Nrows = MOM.grid_y-row
+    rows =  np.arange(row,MOM.grid_y,1)
     cols = np.arange(col-size,col+size+1,1)
     # Change the indices to refer to the other side of the polar fold
-    cols = (grid_x-1) - cols
+    cols = (MOM.grid_x-1) - cols
     Ncols = cols.shape[0]
     idx = np.full([2,Nrows*Ncols],np.nan) # Create cell index (rows,cols) 
     for i in range(Nrows):    
@@ -145,14 +151,14 @@ def halo_eta(row,col,MOM):
     #       col        - Longitude grid index
     #       o_mask_new - An ocean mask that is updated during the processing 
     #                    of this code
-    #       MOM - Data structure of MOM restart variables
+    #       MOM        - Data structure of MOM restart variables
     # Out:  mean_eta   - The average sea level height calculated in a halo around
     #                    cell (row,col)
     
     if np.isnan(MOM.eta[0,0]) == False:
         raise ValueError(str('eta not properly formatted. Land = '+str(MOM.eta[0,0]) \
                              + ' not NaN'))
-    halo = get_halo(MOM.o_mask_new,row,col,1)
+    halo = get_halo(MOM,row,col,1,MOM.o_mask_new)
     eta_halo = MOM.eta[halo==True]
     mean_eta = np.mean(eta_halo)
     
@@ -216,37 +222,37 @@ def check_neighbour(data,row,col,flag):
 def check_water_col(MOM,SIS):
     # Check 1 Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
-    for i in range(depth.shape[0]):
-        for j in range(depth.shape[1]):
-            if (ice_frac[i,j] >= 0.7 and o_mask[i,j] > 0) or 0 < depth[i,j] < 5: 
-                o_mask_new[i,j] = 0;
-                depth[i,j]      = 0; 
-                chng_mask[i,j]  = -1;
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            if (SIS.ice_frac[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or 0 < MOM.depth[i,j] < 5: 
+                MOM.o_mask_new[i,j] = 0;
+                MOM.depth[i,j]      = 0; 
+                MOM.chng_mask[i,j]  = -1;
     
     # Check 2: Has change in SSH/ bathymetry created new land?
-    for i in range(depth.shape[0]):
-        for j in range(depth.shape[1]):
-            if (ave_eta[i,j] + depth[i,j] < 2) and o_mask[i,j] > 0:
-                o_mask_new[i,j] = 0;
-                depth[i,j]      = 0;
-                chng_mask[i,j]  = -1;
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            if (MOM.ave_eta[i,j] + MOM.depth[i,j] < 2) and MOM.o_mask[i,j] > 0:
+                MOM.o_mask_new[i,j] = 0;
+                MOM.depth[i,j]      = 0;
+                MOM.chng_mask[i,j]  = -1;
         
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
-    for i in range(depth.shape[0]):
-        for j in range(depth.shape[1]):
-            if ice_frac[i,j] <= 0.3 and o_mask[i,j] == 0 and depth[i,j] >= 5:
-                eta_mean = halo_eta(eta,i,j);
-                if eta_mean + depth[i,j] > 2: # optionally add: and coast[i,j] == 1: 
-                    o_mask_new[i,j] = 1;
-                    chng_mask[i,j]  = 1;
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            if SIS.ice_frac[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth[i,j] >= 5:
+                eta_mean = halo_eta(MOM.eta,i,j);
+                if eta_mean + MOM.depth[i,j] > 2: # optionally add: and coast[i,j] == 1: 
+                    MOM.o_mask_new[i,j] = 1;
+                    MOM.chng_mask[i,j]  = 1;
      
     # Finally, we need to make sure our new land-sea mask has not created isolated
     # cells or inland seas, if so, updated o_mask and chng_mask where required
-    o_mask_new, chng_mask = chk_cells(o_mask_new,chng_mask)               
+    MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM.o_mask_new,MOM.chng_mask)               
                     
                     
     # Write change mask to netCDF
-    if test:
+    if MOM.debugging:
         id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')
     else:
         id = CDF('dir', 'w')

@@ -20,27 +20,29 @@ o_mask[0::,0] = 0; o_mask[0::,19] = 0; o_mask[0,0::] = 0; o_mask[19,0::] = 0;
 o_mask[18,9] = 0; o_mask[17,10:16] = 0; o_mask[16,16] = 0; o_mask[16,18] = 0;
 o_mask[15,17] = 0;
 
-def chk_cells(o_mask,chng_mask):
+def chk_cells(MOM):
     # This function checks the ocean mask for cells or groups of cells isolated
     # from the ocean. 
     # In:  o_mask    - Ocean mask (ocean = 1, land = 0)
     #      chng_mask - A mask indicating which cells are changing from the last 
     #                  simulation to the next (-1 = new land, 1 = new ocean)
+    #      MOM       - Data structure containing all ocean restart data
     # Out: o_mask    - Updated ocean mask
     #      chng_mask - Updated change mask
     grd = o_mask.shape
+    stop = MOM.grid_y/2 # Pick an arbitrary stopping criteria scaled by grid size
     
-    for i in range(chng_mask.shape[0]):
-        for j in range(chng_mask.shape[1]):
-            if chng_mask[i,j] == 1 or -1:
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            if MOM.chng_mask[i,j] == 1 or -1:
               # For algorithm to work, we must search in both 'directions'.
               # Try one, then the other.
-              iso_mask = ID_iso_cells(i,j,o_mask,'right',40,grd)
+              iso_mask = ID_iso_cells(i,j,MOM.o_mask,'right',stop,grd)
               if iso_mask == None:
-                  iso_mask = ID_iso_cells(i,j,o_mask,'right',40,grd)
-              # If have isolated cells, determine what to do with them
+                  iso_mask = ID_iso_cells(i,j,MOM.o_mask,'left',stop,grd)
+              # If we have isolated cells, determine what to do with them
               if iso_mask != None:
-                  chng_mask_2, o_mask_2 = fix_iso_cells(iso_mask)
+                  chng_mask_2, o_mask_2 = fix_iso_cells(iso_mask,MOM)
     
     
     return
@@ -49,15 +51,24 @@ def ID_iso_cells(row,col,o_mask,turn1,stop,grd):
     # This function consists of a square contour-tracing algorithm 
     # (https://tinyurl.com/qrlo5pm) that will identify an isolated group of 
     # ocean cells and return them as a masked array. The algorithm begins from 
-    # the cell that been changed from ocean to land, searching out in two 
+    # the cell that been changed from ocean to land, searching out in one of two 
     # different directions (defined in turn1). If cells are isolated, one 
     # direction will lead to the open ocean (for which a stop criteria is 
-    # implemented) and the other will identify the isolated cells. 
+    # implemented) and the other will identify the isolated cells (if they exist). 
     # In the event that cells are not isolated, the function will not 
     # return anything.
     # In:       row - latitude index
     #           col - logitude index
     #        o_mask - ocean mask
+    #         turn1 - The tracing algorithm can turn left or right upon init.
+    #                 This means we can end up in either isolated cells or the 
+    #                 open ocean. Therefore, if one direction does not work, try 
+    #                 the other.
+    #          stop - The algorithm's stopping criteria. In this case, if the
+    #                 number of cells traced exceeds a certain large value,
+    #                 it is assumed we are in the open ocean rather than an isolated
+    #                 group of cells, and the function is terminated.
+    #           grd - Grid dimensions in form [nrows,ncols]
     # Out: iso_mask - Mask of isolated cells associated with cell (row,col)
     #         
     count = 0
@@ -207,17 +218,32 @@ def sides_chk(row,col,data):
             return False  
     
 
-def fix_iso_cells(iso_mask,chng_mask):
+def fix_iso_cells(iso_mask,MOM):
     # This function takes a group of isolated ocean cells, examines their 
     # collective properties and determines whether or not to leave them alone 
     # or fill them in.
-    # In: iso_mask - Mask showing the location of isolated cells associated with
-    #                a single changed gridcell
-    #     chng_mask - Mask showing which cells will change from land-sea or vice
-    #                 versa.
+    # In:   iso_mask - Mask showing the location of isolated cells associated with
+    #                  a single changed gridcell
+    #      chng_mask - Mask showing which cells will change from land-sea or vice
+    #                  versa.
     # Out: chng_mask - Updated change mask.
+    #         o_mask - Updated ocean mask
     
+    # First identify any isolated cells that are not picked up by tracing algorithm
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            
+    # If cells are less than 5m in depth, fill them in
+    tmp = MOM.h_sum[iso_mask==1] 
+    if np.mean(tmp) < 5:
+        MOM.chng_mask
+    # If the group consists of 3 or fewer cells, fill it in
+    size = np.sum(iso_mask)
+    if size <= 3:
+        MOM.chng_mask[iso_mask==1] = -1
     
+    # If group consists of 4 or more cells and is deeper than 5m, leave it be
+   
     
     
     

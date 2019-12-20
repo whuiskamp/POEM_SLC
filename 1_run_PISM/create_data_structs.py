@@ -12,7 +12,8 @@ class MOM_vars:
         self.o_mask_new     = o_mask_new
         self.depth          = depth
         self.ctrl_depth     = ctrl_depth
-        self.h              = h
+        self.h_oce          = h_oce
+        self.h_sum          = h_sum
         self.ave_eta        = ave_eta
         self.eta            = eta
         self.u              = u
@@ -31,11 +32,13 @@ class MOM_vars:
         self.uhbt_IC        = uhbt_IC
         self.vhbt_IC        = vhbt_IC
         try:
-            self.age        = age 
+            self.age        = age
+        except:
+            print('Age tracer not used')
         self.Kd_shear       = Kd_shear
         self.Kv_shear       = Kv_shear
         self.TKE_turb       = TKE_turb
-        self.Kv_shear_B     = Kv_shear_B
+        self.Kv_shear_Bu    = Kv_shear_Bu
         self.Kv_slow        = Kv_slow
         self.coast          = coast
         self.chng_mask      = chng_mask
@@ -103,30 +106,30 @@ def init_data_structs(work_dir,test):
     o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data.astype(int) # Ocean salinity (ppt)
     ave_eta      = MOM6_rest.variables['ave_ssh'][0,:,:]                 # Time-average sea surface height (m)
     eta          = MOM6_rest.variables['sfc'][0,:,:]                     # Sea surface height (m)
-    u            = MOM6_rest.variables['u'].data                         # Zonal velocity (m s-1)
-    v            = MOM6_rest.variables['v'].data                         # Meridional velocity (m s-1)
-    u2           = MOM6_rest.variables['u2'].data                        # Auxiliary zonal velocity (m s-1)
-    v2           = MOM6_rest.variables['v2'].data                        # Auxiliary meridional velocity (m s-1)
-    h2           = MOM6_rest.variables['h2'].data                        # Auxiliary ocean layer thickness (m)
-    uh           = MOM6_rest.variables['uh'].data                        # Zonal thickness flux (m3 s-1)
-    vh           = MOM6_rest.variables['vh'].data                        # Meridional thickness flux (m3 s-1)
-    diffu        = MOM6_rest.variables['diffu'].data                     # Zonal horizontal viscous acceleration (m s-2)
-    diffv        = MOM6_rest.variables['diffv'].data                     # Meridional horizontal viscous acceleration (m s-2)
-    ubtav        = MOM6_rest.variables['ubtav'].data                     # Time mean baratropic zonal velocity (m s-1)
-    vbtav        = MOM6_rest.variables['vbtav'].data                     # Time mean baratropic meridional velocity (m s-1)
-    ubt_IC       = MOM6_rest.variables['ubt_IC'].data                    # Next init. cond. for baratropic zonal velocity (m s-1)
-    vbt_IC       = MOM6_rest.variables['vbt_IC'].data                    # Next init. cond. for baratropic meridional velocity (m s-1)
-    uhbt_IC      = MOM6_rest.variables['uhbt_IC'].data                   # Next init. cond. for baratropic zonal transport (m3 s-1)
-    vhbt_IC      = MOM6_rest.variables['uhbt_IC'].data                   # Next init. cond. for baratropic meridional transport (m3 s-1)
-    Kd_shear     = MOM6_rest.variables['Kd_shear'].data                  # Shear-driven turbulent diffusivity at interfaces (m2 s-1)
-    Kv_shear     = MOM6_rest.variables['Kv_shear'].data                  # Shear-driven turbulent viscosity at interfaces (m2 s-1)
-    TKE_turb     = MOM6_rest.variables['TKE_turb'].data                  # Turbulent kinetic energy per unit mass at interfaces (m2 s-1)
-    Kv_shear_Bu  = MOM6_rest.variables['Kv_shear_Bu'].data               # Shear-driven turbulent viscosity at vertex interfaces (m2 s-1)
-    Kv_slow      = MOM6_rest.variables['Kv_slow'].data                   # Vertical turbulent viscosity at interfaces due to slow processes (m2 s-1)
+    u            = MOM6_rest.variables['u']                              # Zonal velocity (m s-1)
+    v            = MOM6_rest.variables['v']                              # Meridional velocity (m s-1)
+    u2           = MOM6_rest.variables['u2']                             # Auxiliary zonal velocity (m s-1)
+    v2           = MOM6_rest.variables['v2']                             # Auxiliary meridional velocity (m s-1)
+    h2           = MOM6_rest.variables['h2']                             # Auxiliary ocean layer thickness (m)
+    uh           = MOM6_rest.variables['uh']                             # Zonal thickness flux (m3 s-1)
+    vh           = MOM6_rest.variables['vh']                             # Meridional thickness flux (m3 s-1)
+    diffu        = MOM6_rest.variables['diffu']                          # Zonal horizontal viscous acceleration (m s-2)
+    diffv        = MOM6_rest.variables['diffv']                          # Meridional horizontal viscous acceleration (m s-2)
+    ubtav        = MOM6_rest.variables['ubtav']                          # Time mean baratropic zonal velocity (m s-1)
+    vbtav        = MOM6_rest.variables['vbtav']                          # Time mean baratropic meridional velocity (m s-1)
+    ubt_IC       = MOM6_rest.variables['ubt_IC']                         # Next init. cond. for baratropic zonal velocity (m s-1)
+    vbt_IC       = MOM6_rest.variables['vbt_IC']                         # Next init. cond. for baratropic meridional velocity (m s-1)
+    uhbt_IC      = MOM6_rest.variables['uhbt_IC']                        # Next init. cond. for baratropic zonal transport (m3 s-1)
+    vhbt_IC      = MOM6_rest.variables['uhbt_IC']                        # Next init. cond. for baratropic meridional transport (m3 s-1)
+    Kd_shear     = MOM6_rest.variables['Kd_shear']                       # Shear-driven turbulent diffusivity at interfaces (m2 s-1)
+    Kv_shear     = MOM6_rest.variables['Kv_shear']                       # Shear-driven turbulent viscosity at interfaces (m2 s-1)
+    TKE_turb     = MOM6_rest.variables['TKE_turb']                       # Turbulent kinetic energy per unit mass at interfaces (m2 s-1)
+    Kv_shear_Bu  = MOM6_rest.variables['Kv_shear_Bu']                    # Shear-driven turbulent viscosity at vertex interfaces (m2 s-1)
+    Kv_slow      = MOM6_rest.variables['Kv_slow']                        # Vertical turbulent viscosity at interfaces due to slow processes (m2 s-1)
     
     # Optional ocean vars
     try:
-        age      = MOM6_rest.variables['age1'].data                      # Passive water mass age tracer (yrs)
+        age      = MOM6_rest.variables['age1']                           # Passive water mass age tracer (yrs)
     except(KeyError):
         print('Age tracer not in use')
 #    chng_mask    = chng_file.variables['chng_mask'][:,:];                # Mask of cells to change
@@ -164,6 +167,7 @@ def init_data_structs(work_dir,test):
     T_skin # ??
     
     # Parameters and new vars
+    o_mask     = Omask.variables['mask'][:,:]
     chng_mask    = np.full(o_mask.shape, np.nan);                        # Mask indicating where ocean/land cells are changing
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
     o_mask_new   = Omask.variables['mask'][:,:];                         # Updated ocean mask
@@ -186,14 +190,13 @@ def init_data_structs(work_dir,test):
         ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0 
     else:
         ice_frac  = PISM_data.variables['ice_frac'][:,:] 
-    o_mask     = Omask.variables['mask'][:,:] 
-    o_mask_new = cp.deepcopy(o_mask);
-    
-    
+     
+      
     # Variable pre-processing
     h_oce[:,o_mask==0]  = np.nan                                         # Change land to NaN
     ave_eta[o_mask==0]  = np.nan                                         # Change land to NaN
     eta[o_mask==0]      = np.nan                                         # Change land to NaN
+    h_sum               = np.sum(h_oce,0);
     
     # Identify coastal cells
     coast = calc_coast(o_mask)

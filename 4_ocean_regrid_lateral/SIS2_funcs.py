@@ -116,8 +116,8 @@ def glob_sum_ice_sal(h_ice,ice_frac,S,kg_H,nk_ice,cell_area):
     return total
 
 def sum_ice_sal(row,col,ice_frac,cell_area,h_ice,S,kg_H,nk_ice):
-    # Calculates the sum of salinity for ice in sea ice model. Note there is 
-    # no calculation for snow, as it has a salinity of 0.
+    # Calculates the sum of salinity for ice in sea ice model at grid cell 
+    # [row,col]. Note there is no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 
     # ice_type.F90
     # In: ice_frac   - Fraction of grid cell covered in ice (0-1)
