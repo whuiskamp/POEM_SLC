@@ -46,6 +46,8 @@ class MOM_vars:
         self.lon            = lon
         self.grid_x         = grid_x
         self.grid_y         = grid_y
+        self.C_P            = C_P
+        self.H_to_kg_m2     = H_to_kg_m2
         
         
 class SIS_vars:
