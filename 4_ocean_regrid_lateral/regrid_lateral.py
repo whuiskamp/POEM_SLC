@@ -32,8 +32,8 @@
 
 import subprocess as sp
 import sys
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/6_check_ocean_cells')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/7_ocean_regrid_lateral')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
 import os
 import numpy as np
 import copy as cp
@@ -214,13 +214,13 @@ def redist_mass(MOM,SIS,row,col):
     # 2. Check surrounding SSH
         eta_mean = halo_eta(MOM.eta,row,col);
     # 3. Subtract from topog depth
-        init_h = eta_mean + MOM.depth(row,col);
+        init_h = eta_mean + MOM.depth[row,col];
     # 4. Create new water column with default z levels
         newh[:,row,col] = newcell(init_h)
     # 5. How much mass is required to initialise this cell?
         tot_mass        = init_h*MOM.cell_area[row,col];
     # 6. Remove mass from halo cells
-        delta_mass      = c_wgts*tot_mass           # mass coming from each halo cell
+        delta_mass      = c_wgts*tot_mass               # mass coming from each halo cell
         delta_h         = delta_mass/MOM.cell_area      # converted to change in h thickness
         newh            = h2vgrid(-delta_h,MOM.h_oce);  # Apply del h to each depth level in halo
     # 7. Correct tracer concentrations for change in h thickness
@@ -263,9 +263,10 @@ def newcell(hsum):
     
     return h
 
-def sum_ocean_enth(row,col,T,h,MOM):
+def sum_ocean_enth(row,col,T,h,MOM,flag):
     # This function calculates the total energy in seawater in a single cell.
     # The method used is taken from MOM_sum_ouput.F90, line 675. Units are in J
+    # Option included for a single cell used during tracer_redist
     # In:  MOM                       - Ocean data structure 
     #      h                         - Ocean vertical layer thickness (m) 
     #      T                         - Ocean potential temp. (degC)
@@ -273,15 +274,44 @@ def sum_ocean_enth(row,col,T,h,MOM):
     #      C_P     (gloabal var)     - Heat capacity of seawater (J/K/kg)
     #      H_to_kg_m2                - Grid cell thickness to mass conversion factor
     #                                  Default is 1 for Boussinesq numerics
+    #      flag                      - Indicates whether or not operation is for
+    #                                  a single cell (true) or the entire domain (false)
     # Out: total                     - Total ocean energy (J)
         
     total = 0
-    for i in range(MOM.o_temp.shape[0]):
-        total = total + (MOM.C_P * T[i,row,col]) * \
-                (h[i,row,col]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))
-    
+    if flag:
+        for i in range(MOM.grid_z):
+            total = total + (MOM.C_P * T[i]) * \
+                    (h[i]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))    
+    else:
+        for i in range(MOM.grid_z):
+            total = total + (MOM.C_P * T[i,row,col]) * \
+                    (h[i,row,col]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))
     return total
-                  
+
+def sum_ocean_salt(row,col,S,h,MOM,flag):
+    # This function calculates the total amount of salt in a single grid cell.
+    # The method used is taken from MOM_sum_ouput.F90, line 673. Units are in Kg
+    # In:  MOM                       - Ocean data structure           
+    #      h                         - Ocean vertical layer thickness (m) 
+    #      S                         - Ocean salinity (ppt)
+    #      H_to_kg_m2                - Grid cell thickness to mass conversion factor
+    #                                  Default is 1 for Boussinesq numerics
+    #      flag                      - Indicates whether or not operation is for
+    #                                  a single cell (true) or the entire domain (false)
+    # Out: total                     - Total salinity (kg)
+    
+    total = 0
+    if flag:
+        for i in range(MOM.grid_z):
+            total = total + S[i] * \
+                    (h[i]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))
+    else:    
+        for i in range(MOM.grid_z):
+            total = total + S[i,row,col] * \
+                    (h[i,row,col]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))      
+    return total*0.001
+
 def redist_tracers(MOM,SIS,row,col,tracer=''):
     # This function redistributes tracers between a cell and target halo cells.
     # It works with energy and salinity only at this point.
@@ -329,50 +359,69 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
                                        SIS.s_ice,MOM.H_to_kg_m2)
         
             # 1.2 Sum energy in sea water
-            ocean_tot = sum_ocean_enth(row,col,MOM.o_temp,MOM.h_oce,MOM)
-            tot_heat = ocean_tot + ice_tot
+            oce_tot = sum_ocean_enth(row,col,MOM.o_temp,MOM.h_oce,MOM,"False")
+            tot_heat = oce_tot + ice_tot
         
             # 1.3 Calculate how much energy each halo cell recieves 
-            delta_heat      = c_wgts*tot_heat           # energy going to each halo cell
+            delta_heat      = c_wgts*tot_heat          # energy going to each halo cell
             o_temp          = heat2cell(delta_heat,MOM.o_temp,MOM)
             new_tracer      = o_temp
         elif tracer == 'salt':
             # 1.4 Sum salinity in sea ice (snow has no salt content)
-            
+            if np.sum(SIS.ice_frac[:,row,col],0) > 0:
+                ice_tot = sum_ice_sal(row,col,SIS.ice_frac,MOM.cell_area,SIS.h_ice, \
+                                      SIS.s_ice,SIS.H_to_kg_m2,SIS.nk_ice)
             
             # 1.5 Sum salt in ocean water
+            oce_tot = sum_ocean_salt(row,col,MOM.o_salt,MOM.h_oce,MOM,"False")
+            tot_salt = oce_tot + ice_tot
             
             # 1.6 Calculate how much salt each halo cell recieves
-    
+            delta_salt      = c_wgts*tot_salt          # salt going to each halo cell
+            o_salt          = tracer2cell(delta_salt,MOM.o_salt,MOM,'salt')
+            new_tracer      = o_salt
     # Or is land becoming ocean?
     elif chng_mask[row,col] == 1: # land -> ocean
+        # Before we move tracers around, we need to initialise the cell to have
+        # h levels and mass information. This follows the same steps as in the 
+        # mass redistribution code.
+        # 2.1 Check surrounding SSH
+        eta_mean = halo_eta(MOM.eta,row,col)
+        # 2.2 Subtract from topog depth
+        init_h = eta_mean + MOM.depth[row,col]
+        # 2.3 Create new water column with default z levels
+        newh = newcell(init_h)
+        # 2.4 How much mass is required to initialise this cell?
+        tot_mass        = init_h*MOM.cell_area[row,col];
         # Which tracer?
         if tracer == 'temp':
-            # 2.1 
-#        # To do....  
-#        elif tracer == 'salt'
-#            pass
-#        pass
-           
-            
-            
-            
-              
-#    elif tracer == 'salt':
-        
-    
-    
-    
-    
-    
-    
+            # 2.5 Create new temperature profile based on surrounding cells
+            for i in range(MOM.grid_z):
+                T[i],_,_ = halo_calc(row,col,MOM.o_temp[i,:,:],MOM,1,'mean')
+            # 2.6 Calculate total energy for new cell
+            T_tot = sum_ocean_enth(row,col,T,newh,MOM,"True")
+            # 2.7 Calculate how much energy must be removed from each halo cell
+            delta_heat      = c_wgts*T_tot
+            o_temp          = heat2cell(-delta_heat,MOM.o_temp,MOM)
+            new_tracer      = o_temp
+        elif tracer == 'salt':
+            # 2.8 Create new salinity profile based on surrounding cells
+            for i in range(MOM.grid_z):
+                S[i],_,_ = halo_calc(row,col,MOM.o_salt[i,:,:],MOM,1,'mean')
+            # 2.9 Calculate total salt for new cell
+            S_tot = sum_ocean_salt(row,col,S,newh,MOM,"True")
+            # 2.10 Calculate how much salt must be removed from each halo cell
+            delta_salt      = c_wgts*S_tot          # salt going to each halo cell
+            o_salt          = tracer2cell(-delta_salt,MOM.o_salt,MOM,'salt')
+            new_tracer      = o_salt
+                
     return new_tracer
     
 def heat2cell(delta_E,T,MOM):
     # This function adds or removes energy to/from a grid cell and updates the 
-    # temperature field of the water column. Currently, the approach is to spread
-    # the energy change over the entire water column, minimising the change in
-    # T in any one layer.
+    # temperature field. The approach used is designed to spread out the change
+    # in T equally throughout the water column (so, proportional to h) to try and
+    # maintain the vertical temperature structure of the grid cell.
     # In:  delta_E   - The energy being added/removed from a series of halo cells 
     #      T         - The temperature field to be altered
     #      cell_area - Tracer cell area
@@ -380,12 +429,32 @@ def heat2cell(delta_E,T,MOM):
     # Out: T_new     - Updated temperature field
     wght = np.full(T.shape,0)
     mass = np.full(T.shape,0)
-    for i in range(MOM.h_oce.shape[0]):
+    for i in range(MOM.grid_z):
         mass[i,:,:] = MOM.h_oce[i,:,:] * MOM.cell_area
         wght[i,:,:] = MOM.h_oce[i,:,:]/np.sum(MOM.h_oce,0)
-        T_new = T[i,:,:] + delta_E*wght[i,:,:]/(mass*MOM.C_P)  
+        T_new = T[i,:,:] + delta_E*wght[i,:,:]/(mass[i,:,:]*MOM.C_P)  
         
     return T_new
+
+def tracer2cell(delta_t,tracer,MOM,var=''):
+    # This function adds or removes a tracer to/from a grid cell and updates
+    # that tracer's field. Changes in the tracer are spread evenly over the water
+    # column in an attempt to maintain the vertical profiles of the tracer 
+    # concentration. This may not be appropriate for all tracers, but for now,
+    # only code for salt is implemented.
+    # In:  delta_t   - Change in some tracer (kg for salt)
+    #      tracer    - The tracer field to be altered
+    #      MOM       - The ocean data structure
+    #      var       - Name of the tracer being altered (string)
+    # Out: new       - Updated tracer field (ppt for salt)
+    wght = np.full(T.shape,0)
+    mass = np.full(T.shape,0)
+    for i in range(MOM.grid_z):
+        mass[i,:,:] = MOM.h_oce[i,:,:] * MOM.cell_area
+        wght[i,:,:] = MOM.h_oce[i,:,:]/np.sum(MOM.h_oce,0)
+        if var == 'salt':
+            new = tracer[i,:,:] + ((delta_t*1000)*wght)/mass[i,:,:]
+    return new
 
 def chk_ssh(h_sum): # Unfinished- double check everything
     # This function checks for sea surface height gradients after redistribution

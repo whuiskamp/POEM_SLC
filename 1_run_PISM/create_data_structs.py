@@ -105,7 +105,7 @@ def init_data_structs(work_dir,test):
     # Ocean
     h_oce        = MOM6_rest.variables['h'][0,:,:,:].data                # Ocean layer thickness (m)
     o_temp       = MOM6_rest.variables['Temp'][0,:,:,:].data             # Ocean potential temperature (deg C)
-    o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data.astype(int) # Ocean salinity (ppt)
+    o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data #.astype(int) # Ocean salinity (ppt)
     ave_eta      = MOM6_rest.variables['ave_ssh'][0,:,:]                 # Time-average sea surface height (m)
     eta          = MOM6_rest.variables['sfc'][0,:,:]                     # Sea surface height (m)
     u            = MOM6_rest.variables['u']                              # Zonal velocity (m s-1)
@@ -169,7 +169,7 @@ def init_data_structs(work_dir,test):
     T_skin # ??
     
     # Parameters and new vars
-    o_mask     = Omask.variables['mask'][:,:]
+    o_mask       = Omask.variables['mask'][:,:]
     chng_mask    = np.full(o_mask.shape, np.nan);                        # Mask indicating where ocean/land cells are changing
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
     o_mask_new   = Omask.variables['mask'][:,:];                         # Updated ocean mask
@@ -185,7 +185,8 @@ def init_data_structs(work_dir,test):
     lon        = grid.variables['geolon'][:,:];                          # Longitude of tracer cell-centres
     grid_x     = lon.shape[1];                                           # Size of ocean longitude domain 
     grid_y     = lat.shape[0];                                           # Size of ocean latitude domain
-    cell_area    = grid.variables['Ah'][:,:];                            # Area of h (tracer) cells
+    grid_z     = get_param(params_MOM,'NK');                             # Number of vertical levels in ocean
+    cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
     
     if test:
         ice_frac  = PISM_data.variables['mask'][:,:];

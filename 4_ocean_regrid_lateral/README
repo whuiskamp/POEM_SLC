@@ -143,3 +143,18 @@ kg_H = 1 (from SIS param file H_TO_KG_M2)
 For order of operations, redistribution of tracers needs to occur first. Otherwise, if mass is done first, we need to keep track of both the old and new 'h' fields.
 
 Furthermore, a separate ocean mask should be created specifically for the get_halo function which prevents the removal/ addition of mass and tracers from cells that have already been emptied. This still needs to be done. New land cells should be masked out, but cells that will become ocean should remain land to avoid water being added to them before they can be initialised as ocean.
+
+For salt:
+In SIS2:
+
+!There is no salt in the snow.
+value = 0.0
+do m=1,NkIce;
+	do k=1,ncat;
+		do j=jsc,jec;
+			do i=isc,iec
+        		value = value + (IST%part_size(i,j,k) * (G%areaT(i,j)*G%mask2dT(i,j))) * &
+            	(0.001*(kg_H_Nk*IST%mH_ice(i,j,k))) * IST%sal_ice(i,j,k,m)
+enddo ; enddo ; enddo ; enddo
+
+NOTE: When initialising a new coastal cell in a polar region - should we initialise it with sea ice if surrounding cells also have sea ice? Otherwise we are creating artificial polynias. I don't *think* this should be a big deal, as these new cells will always be only one or two cells and usually quite shallow - it's unlikely we're going to be causing spontaneous convection events, but definitely something to look out for.

@@ -1,0 +1,2 @@
+This script will essentially just take updated fields from both the MOM and SIS data structures and export them to new 
+restart files. In addition, all other fields in the restart files that require alteration will be changed here. 
