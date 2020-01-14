@@ -24,11 +24,9 @@ if __name__ == "__main__":
     # Read in model files and create data structures
     init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test)
     # Check to see if cells need to change to/from land/ocean
-    
-    # Check if these changes have created isolated cells and deal with them
-    
+    check_water_col
     # Implement changes to land sea mask and redistribute relevant tracers
-
+    redist_vals
 
 
 

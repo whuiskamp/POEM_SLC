@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 # This script checks a given ocean mask for non-advective cells or cells that 
 # have been isolated from the ocean. When found, appropriate action is taken to
-# either make them land, or implement a solution that reconnects them with the 
-# ocean
+# either make them land, or leave them alone (so long as they are stable).
+# REMEMBER THAT NORTH IS 'DOWN'!!!!
 
 import numpy as np
 import copy as cp
@@ -22,7 +22,8 @@ o_mask[15,17] = 0;
 
 def chk_cells(MOM):
     # This function checks the ocean mask for cells or groups of cells isolated
-    # from the ocean. 
+    # from the ocean. For the tracing algorithm to function, we must first 
+    # eliminate individual isolated cells.
     # In:  o_mask    - Ocean mask (ocean = 1, land = 0)
     #      chng_mask - A mask indicating which cells are changing from the last 
     #                  simulation to the next (-1 = new land, 1 = new ocean)
@@ -101,7 +102,8 @@ def ID_iso_cells(row,col,o_mask,turn1,stop,grd):
         # successfully mapped the isolated region, so break loop
         if row_new == row_1 and col_new == col_1 and new_dir == dir_1:
             break
-    # If count gets too big, we're in open ocean - return nothing.    
+    # If count gets too big, we're in open ocean - return nothing.
+    print(count)    
     if count == stop: 
         return
     elif 1 in iso_mask:
@@ -169,6 +171,56 @@ def update_orientation(old_dir,row,col,turn,grd):
      
     return row, col, new_dir
 
+def one_cell_chk(row,col,MOM):
+    # This function checks for individual isolated cells. If/when found, the 
+    # chng_mask will be updated.
+    # In:        row - Latitude index
+    #            col - Longitude index
+    #            MOM - Ocean data structure
+    # Out: chng_mask - Mask specifying which cells will change from ocean>land
+    #                  or vice versa
+    
+    # For cells not interacting with the polar fold
+    if row < MOM.o_mask_new.shape[0]-1:
+        if col == MOM.o_mask_new.shape[1]-1:
+            col_m1 = col-1; col_p1 = 0
+        elif col == 0:
+            col_p1 = 1; col_m1 = MOM.o_mask_new.shape[1]-1
+        else:
+            col_m1 = col-1; col_p1 = col+1
+        if row == 0:
+            row_m1 = 0; row_p1 = 1
+        else:
+            row_m1 = row - 1; row_p1 = row+1
+            
+        if MOM.o_mask_new[row_p1,col] == 0 \
+            and MOM.o_mask_new[row_m1,col] == 0 \
+            and MOM.o_mask_new[row,col_m1] == 0 \
+            and MOM.o_mask_new[row,col_p1] == 0:
+            MOM.chng_mask[row,col] = -1
+            MOM.o_mask_new[row,col] = 0
+        else: 
+            return
+    
+    # For cell at the polar fold, row_p1 will lie on other side. ie: same row,
+    # different col.    
+    elif row == MOM.o_mask_new.shape[0]-1:
+        if col == MOM.o_mask_new.shape[1]-1:
+            col_m1 = col-1; col_p1 = 0
+        elif col == 0:
+            col_p1 = 1; col_m1 = MOM.o_mask_new.shape[1]-1
+        else:
+            col_m1 = col-1; col_p1 = col+1
+        row_m1 = row-1
+        if MOM.o_mask_new[row,(MOM.o_mask_new.shape[1]-1)-col] == 1 \
+           or MOM.o_mask_new[row_m1,col] == 1 \
+           or MOM.o_mask_new[row,col_m1] == 1 \
+           or MOM.o_mask_new[row,col_p1] == 1:
+           MOM.chng_mask[row,col] = -1
+           MOM.o_mask_new[row,col] = 0
+        else: 
+            return
+        
 def sides_chk(row,col,data):
     # This checks whether an ocean cell is in fact within the same land-bounded
     # region as other ocean cells, as the tracing algorithm can fail when ocean
@@ -222,17 +274,14 @@ def fix_iso_cells(iso_mask,MOM):
     # This function takes a group of isolated ocean cells, examines their 
     # collective properties and determines whether or not to leave them alone 
     # or fill them in.
-    # In:   iso_mask - Mask showing the location of isolated cells associated with
+    # In:        MOM - Ocean data structure
+    #       iso_mask - Mask showing the location of isolated cells associated with
     #                  a single changed gridcell
     #      chng_mask - Mask showing which cells will change from land-sea or vice
     #                  versa.
     # Out: chng_mask - Updated change mask.
     #         o_mask - Updated ocean mask
     
-    # First identify any isolated cells that are not picked up by tracing algorithm
-    for i in range(MOM.grid_y):
-        for j in range(MOM.grid_x):
-            
     # If cells are less than 5m in depth, fill them in
     tmp = MOM.h_sum[iso_mask==1] 
     if np.mean(tmp) < 5:
@@ -253,9 +302,9 @@ def fix_iso_cells(iso_mask,MOM):
     return
 grd = o_mask.shape      
 
-test = ID_iso_cells(11,10,o_mask,'right',40,grd)        
+test = ID_iso_cells(17,10,o_mask,'right',10,grd)        
 if test is None:     
-    test = ID_iso_cells(11,10,o_mask,'left',40,grd)
+    test = ID_iso_cells(17,10,o_mask,'left',10,grd)
 
 test = ID_iso_cells(18,9,o_mask,'right',40,grd)        
 if test is None:     

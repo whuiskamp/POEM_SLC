@@ -143,36 +143,36 @@ def init_data_structs(work_dir,test):
     s_ice        = SIS2_rest.variables['sal_ice'][0,0,0,0,0].data;       # Salinity of sea ice in g/kg - it's a fixed value
     e_ice        = SIS2_rest.variables['enth_ice'][0,:,:,:,:].data;      # Enthalpy of sea ice in J
     e_sno        = SIS2_rest.variables['enth_snow'][0,:,:,:,:].data;     # Enthalpy of snow in J
-    flux_u       = SIS2_rest.variables['flux_u'][0,:,:].data;            # 
-    flux_v       = SIS2_rest.variables['flux_v'][0,:,:].data;            # 
-    flux_t       = SIS2_rest.variables['flux_t'][0,:,:].data;            #
-    flux_q       = SIS2_rest.variables['flux_q'][0,:,:].data;            #
-    flux_salt    = SIS2_rest.variables['flux_salt'][0,:,:].data;         #
-    flux_lw      = SIS2_rest.variables['flux_lq'][0,:,:].data;           #
-    lprec        = SIS2_rest.variables['lprec'][0,:,:].data;             #
-    fprec        = SIS2_rest.variables['fprec'][0,:,:].data;             #
-    runoff       = SIS2_rest.variables['runoff'][0,:,:].data;            # Liquid water runoff 
-    calving      = SIS2_rest.variables['calving'][0,:,:].data;           # 
+    flux_u       = SIS2_rest.variables['flux_u'][0,:,:].data;            # The flux of x-momentum into the ocean (Pa)
+    flux_v       = SIS2_rest.variables['flux_v'][0,:,:].data;            # The flux of y-momentum into the ocean (Pa)
+    flux_t       = SIS2_rest.variables['flux_t'][0,:,:].data;            # The flux of sensible heat out of the ocean (W m-2)
+    flux_q       = SIS2_rest.variables['flux_q'][0,:,:].data;            # The evaporative moisture flux out of the ocean (kg m-2 s-1)
+    flux_salt    = SIS2_rest.variables['flux_salt'][0,:,:].data;         # The flux of salt out of the ocean (kg m-2)
+    flux_lw      = SIS2_rest.variables['flux_lq'][0,:,:].data;           # The longwave flux out of the ocean (W m-2)
+    lprec        = SIS2_rest.variables['lprec'][0,:,:].data;             # The liquid precipitation flux into the ocean (kg m-2)
+    fprec        = SIS2_rest.variables['fprec'][0,:,:].data;             # The frozen precipitation flux into the ocean (kg m-2)
+    runoff       = SIS2_rest.variables['runoff'][0,:,:].data;            # Liquid water runoff into the ocean (kg m-2)
+    calving      = SIS2_rest.variables['calving'][0,:,:].data;           # Calving of ice or runoff of frozen fresh water into the ocean (kg m-2)
     runoff_hflx  = SIS2_rest.variables['runoff_hflx'][0,:,:].data;       # Runoff heatflux. This variable should not be required normally. May be used when coupling with PICO-PISM
-    calving_hflx = SIS2_rest.variables['calving_hflx'][0,:,:].data;      #
-    p_surf       = SIS2_rest.variables['p_surf'][0,:,:].data;            #
+    calving_hflx = SIS2_rest.variables['calving_hflx'][0,:,:].data;      # The heat flux associated with calving, based on the temperature difference relative to a reference temperature (no units given in model code)
+    p_surf       = SIS2_rest.variables['p_surf'][0,:,:].data;            # The pressure at the ocean surface (Pa) - may or may not include atmospheric pressure (from SIS2 code)
     t_surf_ice   = SIS2_rest.variables['t_surf_ice'][0,:,:].data;        # Surface temperature of sea ice (deg K)
     h_pond       = SIS2_rest.variables['h_pond'][0,:,:,:].data;          # Pond water thickness (m)
-    u_ice        = SIS2_rest.variables['u_ice'][0,:,:].data;             # 
-    v_ice        = SIS2_rest.variables['v_ice'][0,:,:].data;             #
-    sig11        = SIS2_rest.variables['sig11'][0,:,:].data;             #
-    sig12        = SIS2_rest.variables['sig12'][0,:,:].data;             #
-    sig22        = SIS2_rest.variables['sig22'][0,:,:].data;             #
-    rough_mom    = SIS2_rest.variables['rough_mom'][0,:,:,:].data;       #
+    u_ice        = SIS2_rest.variables['u_ice'][0,:,:].data;             # Zonal ice velocity (ms-1)
+    v_ice        = SIS2_rest.variables['v_ice'][0,:,:].data;             # Meridional ice velocity (ms-1)
+    sig11        = SIS2_rest.variables['sig11'][0,:,:].data;             # The xx component of the stress tensor in Pa m (or N m-1)
+    sig12        = SIS2_rest.variables['sig12'][0,:,:].data;             # The xy and yx component of the stress tensor in Pa m (or N m-1)
+    sig22        = SIS2_rest.variables['sig22'][0,:,:].data;             # The yy component of the stress tensor in Pa m (or N m-1)
+    rough_mom    = SIS2_rest.variables['rough_mom'][0,:,:,:].data;       # The roughness for momentum at the ocean surface, as provided by ocean_rough_mod, apparently (?!) in m
     rough_heat = rough_mom; rough_moist = rough_mom                      # These are identical land-sea masks
-    coszen # ??
-    T_skin # ??
+    coszen                                                               # Cosine of solar zenith angle
+    T_skin                                                               # The sea ice surface skin temperature (deg C)
     
     # Parameters and new vars
-    o_mask       = Omask.variables['mask'][:,:]
-    chng_mask    = np.full(o_mask.shape, np.nan);                        # Mask indicating where ocean/land cells are changing
+    o_mask       = Omask.variables['mask'][:,:]                          # Old ocean mask (boolean)
+    chng_mask    = np.full(o_mask.shape, np.nan);                        # Mask indicating where ocean/land cells are changing (0=no change, 1=land>ocean, -1=ocean>land)
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
-    o_mask_new   = Omask.variables['mask'][:,:];                         # Updated ocean mask
+    o_mask_new   = Omask.variables['mask'][:,:];                         # Updated ocean mask (boolean)
     C_P          = get_param(params_MOM,'C_P');                          # The heat capacity of seawater in MOM6 (J kg-1 K-1)
     H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                   # grid cell to mass conversion factor (1 by default)
     
@@ -199,7 +199,7 @@ def init_data_structs(work_dir,test):
     h_oce[:,o_mask==0]  = np.nan                                         # Change land to NaN
     ave_eta[o_mask==0]  = np.nan                                         # Change land to NaN
     eta[o_mask==0]      = np.nan                                         # Change land to NaN
-    h_sum               = np.sum(h_oce,0);
+    h_sum               = np.sum(h_oce,0);                               # Depth of water column (NOT depth of bathymetry)
     
     # Identify coastal cells
     coast = calc_coast(o_mask)

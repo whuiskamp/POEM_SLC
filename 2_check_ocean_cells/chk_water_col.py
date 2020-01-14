@@ -248,7 +248,9 @@ def check_water_col(MOM,SIS):
      
     # Finally, we need to make sure our new land-sea mask has not created isolated
     # cells or inland seas, if so, updated o_mask and chng_mask where required
-    MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM.o_mask_new,MOM.chng_mask)               
+    
+    if np.any(MOM.chng_mask): # We only need to perform this test if cells change
+        MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM.o_mask_new,MOM.chng_mask)               
                     
                     
     # Write change mask to netCDF
