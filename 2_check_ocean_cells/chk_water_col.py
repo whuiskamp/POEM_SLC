@@ -19,12 +19,11 @@
 ## Import packages ##
 
 import numpy as np
-import time
-#import matplotlib.pyplot as plt
-from netCDF4 import Dataset as CDF
+import matplotlib.pyplot as plt
+
 
 __author__ = "Willem Huiskamp"
-__copyright__ = "Copyright 2019"
+__copyright__ = "Copyright 2020"
 __credits__ = ["", ""]
 __license__ = "GPLv3"
 __version__ = "1.0.0"
@@ -219,12 +218,12 @@ def check_neighbour(data,row,col,flag):
     return criteria
 
 ################################# Main Code ###################################
-def check_water_col(MOM,SIS):
+def check_water_col(MOM,ICE):
     # Check 1 Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if (SIS.ice_frac[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or 0 < MOM.depth[i,j] < 5: 
+            if (ICE.ice_frac[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or 0 < MOM.depth[i,j] < 5: 
                 MOM.o_mask_new[i,j] = 0;
                 MOM.depth[i,j]      = 0; 
                 MOM.chng_mask[i,j]  = -1;
@@ -240,7 +239,7 @@ def check_water_col(MOM,SIS):
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if SIS.ice_frac[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth[i,j] >= 5:
+            if ICE.ice_frac[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth[i,j] >= 5:
                 eta_mean = halo_eta(MOM.eta,i,j);
                 if eta_mean + MOM.depth[i,j] > 2: # optionally add: and coast[i,j] == 1: 
                     MOM.o_mask_new[i,j] = 1;
@@ -251,7 +250,7 @@ def check_water_col(MOM,SIS):
     
     if np.any(MOM.chng_mask): # We only need to perform this test if cells change
         MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM.o_mask_new,MOM.chng_mask)               
-                    
+        # Print figures showing new land mask and which cells are changing             
                     
     
     

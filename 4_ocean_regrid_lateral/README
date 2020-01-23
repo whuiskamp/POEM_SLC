@@ -158,3 +158,5 @@ do m=1,NkIce;
 enddo ; enddo ; enddo ; enddo
 
 NOTE: When initialising a new coastal cell in a polar region - should we initialise it with sea ice if surrounding cells also have sea ice? Otherwise we are creating artificial polynias. I don't *think* this should be a big deal, as these new cells will always be only one or two cells and usually quite shallow - it's unlikely we're going to be causing spontaneous convection events, but definitely something to look out for.
+
+Note on reproducible sums for stockchecking/ conservation. np.sum() is not strictly accurate with its rounding, and with larger datasets (and when values after the decimal place are important), it is not appropriate. In this instance, the function math.fsum() should be used, although it is roughly 10x slower. Testing these two functions on the h_oce data, the difference between the two is only visible at the 15th significant figure. For conservation checks, this will not matter much, but if these functions are used in the redistribution code, it could become a problem.

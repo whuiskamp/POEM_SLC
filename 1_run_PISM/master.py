@@ -1,4 +1,4 @@
-# Overarching script for dynamic sea level coupling code
+# Over-arching script for dynamic sea level coupling code
 # This script reads data from restarts, creates python data structures and initialises
 # the main scipts.
 

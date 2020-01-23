@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# This script contains functions for calculating enthalpy in the sea ice model 
-# SIS2. These functions are taken directly from the model.
+# This script contains functions for calculating enthalpy and salinity
+# in the sea ice model SIS2. These functions are taken directly from the model.
 # There appear to be many redundant variables here, such as enth_unit,
 # but these are retained to match the original functions and because they can
 # be altered from default values when required (however unlikely).
@@ -120,13 +120,13 @@ def sum_ice_sal(row,col,ice_frac,cell_area,h_ice,S,kg_H,nk_ice):
     # [row,col]. Note there is no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 
     # ice_type.F90
-    # In: ice_frac   - Fraction of grid cell covered in ice (0-1)
-    #     cell_area  - Tracer grid cell area, from ocean grid
-    #     h_ice      - Ice mass (kg/m2)
-    #     S          - Salinity of ice (g/kg). Default is 5.0
-    #     kg_H       - kg to h grid conversion factor. Default is 1.
-    #     nk_ice     - Number of vertical levels in sea ice field
-    # Out: total     - Total salinity in sea ice
+    # In:  ice_frac   - Fraction of grid cell covered in ice (0-1)
+    #      cell_area  - Tracer grid cell area, from ocean grid
+    #      h_ice      - Ice mass (kg/m2)
+    #      S          - Salinity of ice (g/kg). Default is 5.0
+    #      kg_H       - kg to h grid conversion factor. Default is 1.
+    #      nk_ice     - Number of vertical levels in sea ice field
+    # Out: total      - Total salinity in sea ice
     kg_H_Nk = kg_H/nk_ice; total = 0
     sal_ice = np.full([4,5,80,120], S)
     

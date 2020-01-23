@@ -100,7 +100,7 @@ def halo_calc(row,col,data,MOM,size,operation):
         ave_halo = np.mean(dat_halo);
         return ave_halo, halo, dat_masked
     
-def cell_weights(row,col,size,omask):
+def cell_weights(row,col,size,omask,cell_area):
     # This function calculate the cells weights for redistributing mass and tracers.
     # Weights are based on cell area
     # In:  row       - latitude index
@@ -184,7 +184,7 @@ def redist_mass(MOM,SIS,row,col):
     # 
     
     size         = MOM.h_size_mask[row,col].astype(int);      # Def. halo radius
-    c_wgts, halo = cell_weights(row,col,size,MOM.o_mask_new); # Get weights for re-distribution
+    c_wgts, halo = cell_weights(row,col,size,MOM.o_mask_new,MOM.cell_area); # Get weights for re-distribution
     ice_mass = 0; sno_mass = 0;                           # Initialise remaining vars
     # 1. Are we filling or emptying a cell?
     if MOM.chng_mask[row,col] == -1: # Emptying a cell (ocean -> Land)
@@ -281,12 +281,12 @@ def sum_ocean_enth(row,col,T,h,MOM,flag):
     total = 0
     if flag:
         for i in range(MOM.grid_z):
-            total = total + (MOM.C_P * T[i]) * \
-                    (h[i]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))    
+            total = total + (MOM.C_P * T[i,row,col]) * \
+                    (h[i,row,col]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))    
     else:
         for i in range(MOM.grid_z):
-            total = total + (MOM.C_P * T[i,row,col]) * \
-                    (h[i,row,col]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))
+            total = total + np.sum((MOM.C_P * T[i,:,:]) * \
+                    (h[i,:,:]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col])))
     return total
 
 def sum_ocean_salt(row,col,S,h,MOM,flag):
@@ -304,12 +304,12 @@ def sum_ocean_salt(row,col,S,h,MOM,flag):
     total = 0
     if flag:
         for i in range(MOM.grid_z):
-            total = total + S[i] * \
-                    (h[i]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))
+            total = total + S[i,row,col] * \
+                    (h[i,row,col]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))
     else:    
         for i in range(MOM.grid_z):
-            total = total + S[i,row,col] * \
-                    (h[i,row,col]*(MOM.H_to_kg_m2 * MOM.cell_area[row,col]))      
+            total = total + np.sum(S[i,:,:] * \
+                    (h[i,:,:]*(MOM.H_to_kg_m2 * MOM.cell_area)))      
     return total*0.001
 
 def redist_tracers(MOM,SIS,row,col,tracer=''):
@@ -344,8 +344,8 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
     # Out: o_temp_new  - Updated temperature field
     #      o_salt_new  - Updated salinity field
     
-    size         = MOM.h_size_mask[row,col].astype(int);         # Def. halo radius
-    c_wgts, halo = cell_weights(row,col,size,MOM.o_mask_redist); # Get weights for re-distribution
+    size         = MOM.h_size_mask[row,col].astype(int);                       # Def. halo radius
+    c_wgts, halo = cell_weights(row,col,size,MOM.o_mask_redist,MOM.cell_area); # Get weights for re-distribution
     ice_tot      = 0;
     
     # Is ocean becoming land?
@@ -381,7 +381,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
             o_salt          = tracer2cell(delta_salt,MOM.o_salt,MOM,'salt')
             new_tracer      = o_salt
     # Or is land becoming ocean?
-    elif chng_mask[row,col] == 1: # land -> ocean
+    elif MOM.chng_mask[row,col] == 1: # land -> ocean
         # Before we move tracers around, we need to initialise the cell to have
         # h levels and mass information. This follows the same steps as in the 
         # mass redistribution code.
@@ -391,8 +391,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
         init_h = eta_mean + MOM.depth[row,col]
         # 2.3 Create new water column with default z levels
         newh = newcell(init_h)
-        # 2.4 How much mass is required to initialise this cell?
-        tot_mass        = init_h*MOM.cell_area[row,col];
+        
         # Which tracer?
         if tracer == 'temp':
             # 2.5 Create new temperature profile based on surrounding cells
@@ -447,8 +446,8 @@ def tracer2cell(delta_t,tracer,MOM,var=''):
     #      MOM       - The ocean data structure
     #      var       - Name of the tracer being altered (string)
     # Out: new       - Updated tracer field (ppt for salt)
-    wght = np.full(T.shape,0)
-    mass = np.full(T.shape,0)
+    wght = np.full(MOM.grid_z,0)
+    mass = np.full(MOM.grid_z,0)
     for i in range(MOM.grid_z):
         mass[i,:,:] = MOM.h_oce[i,:,:] * MOM.cell_area
         wght[i,:,:] = MOM.h_oce[i,:,:]/np.sum(MOM.h_oce,0)
@@ -478,21 +477,83 @@ def chk_ssh(h_sum): # Unfinished- double check everything
                     lrg_grd[i,j] = 1
     return
     
-def chk_conserv(new_h,h_oce,new_t,o_temp,new_s,o_salt,MOM):
+def chk_conserv(OLD,SIS,MOM,data=""):
+    # This function checks conservation for a given quantity/tracer (currently
+    # only mass, energy, and salt). Function returns the error between new and 
+    # old fields and whether or not this is of an acceptable size.
+    # In:  h_oce (new/old)    - Fields of ocean column thickess prior to and after
+    #                           redistribution (m)
+    #      h_ice (new/old)    - Fields of ice thickess prior to and after
+    #                           redistribution (m)
+    #      h_sno (new/old)    - Fields of snow thickess prior to and after
+    #                           redistribution (m)
+    #      o_temp (new/old)   - Fields of ocean temperature prior to and after
+    #                           redistribution (deg C)
+    #      o_salt (new/old)   - Fields of ocean salinity prior to and after
+    #                           redistribution (ppt)
+    #      s_ice (new/old)    - Fields of sea ice salinity prior to and after
+    #                           redistribution (ppt)
+    #      e_ice (new/old)    - Fields of sea ice enthalpy prior to and after
+    #                           redistribution (J)
+    #      e_sno (new/old)    - Fields of snow enthalpy prior to and after
+    #                           redistribution (J)
+    #      ice_frac (new/old) - Fraction of a cell with sea ice prior to and after
+    #                            redistribution (J)
+    #      MOM                - Ocean data structure (contains all updated values)
+    #      SIS                - Sea ice data structure (contains all updated values)
+    #      OLD                - Data structure with values prior to redistribution
+    #      data               - Name of the variable we are checking (mass,temp,salt)
     total_old = 0; total_new = 0
-    for row in range(MOM.grid_y):
-        for col in range(MOM.grid_x):
-            total_old = total_old + sum_ocean_enth(row,col,o_temp_old[:,row,col],
-                            h_oce_old[:,row,col],MOM) \
-                            + sum_ice_enth(row,col,e_ice_old[:,:,row,col], \
-                                          e_sno_old[:,:,row,col],h_ice[:,row,col], \
-                                          h_sno_old[:,row,col],ice_frac[:,row,col])
-            total_new = total_new + sum_ocean_enth(row,col,o_temp[:,row,col],
+    err_tol = 1e-14 # Error tolerance for conservation
+    if data == 'temp':
+        for row in range(MOM.grid_y):
+            for col in range(MOM.grid_x):    
+                total_old += sum_ocean_enth(row,col,OLD.o_temp[:,row,col],
+                            OLD.h_oce[:,row,col],MOM) \
+                            + sum_ice_enth(row,col,OLD.e_ice[:,:,row,col], \
+                            OLD.e_sno[:,:,row,col],OLD.h_ice[:,row,col], \
+                            OLD.h_sno[:,row,col],OLD.ice_frac[:,row,col])
+                total_new += sum_ocean_enth(row,col,MOM.o_temp[:,row,col],
                             MOM.h_oce[:,row,col],MOM) \
-                            + sum_ice_enth(row,col,e_ice[:,:,row,col], \
-                                          e_sno[:,:,row,col],h_ice[:,row,col], \
-                                          h_sno[:,row,col],ice_frac[:,row,col]) 
-    #
+                            + sum_ice_enth(row,col,SIS.e_ice[:,:,row,col], \
+                            SIS.e_sno[:,:,row,col],SIS.h_ice[:,row,col], \
+                            SIS.h_sno[:,row,col],SIS.ice_frac[:,row,col])
+    elif data == 'salt':
+        tot_ice_old = 0
+        tot_ice_new = 0
+        for row in range(MOM.grid_y):
+            for col in range(MOM.grid_x):
+                tot_ice_old += sum_ice_sal(row,col,OLD.ice_frac, \
+                                           MOM.cell_area,OLD.h_ice,SIS.s_ice, \
+                                           SIS.H_to_kg_m2,SIS.nk_ice)
+                tot_ice_new += sum_ice_sal(row,col,SIS.ice_frac, \
+                                           MOM.cell_area,SIS.h_ice,SIS.s_ice, \
+                                           SIS.H_to_kg_m2,SIS.nk_ice)
+        total_old = sum_ocean_salt(None,None,OLD.o_salt,OLD.h_oce,MOM,"False") + \
+                    tot_ice_old
+        total_new = sum_ocean_salt(None,None,MOM.o_salt,MOM.h_oce,MOM,"False") + \
+                    tot_ice_new
+        
+    elif data == 'mass':
+        ice_mass_old = 0; sno_mass_old = 0; ice_mass_new = 0; sno_mass_new = 0
+        # Ice model
+        for i in range(SIS.h_ice.shape[0]):
+            ice_mass_old += OLD.h_ice[i,row,col]*MOM.cell_area[row,col]*OLD.ice_frac[i,row,col] 
+            sno_mass_old += OLD.h_sno[i,row,col]*MOM.cell_area[row,col]*OLD.ice_frac[i,row,col]
+            ice_mass_new += SIS.h_ice[i,row,col]*MOM.cell_area[row,col]*SIS.ice_frac[i,row,col] 
+            sno_mass_new += SIS.h_sno[i,row,col]*MOM.cell_area[row,col]*SIS.ice_frac[i,row,col]
+        # Ocean model
+        sea_mass_old = np.sum(OLD.h_oce,0)*MOM.cell_area
+        sea_mass_new = np.sum(MOM.h_oce,0)*MOM.cell_area
+        # Total
+        total_old    = ice_mass_old + sno_mass_old + sea_mass_old
+        total_new    = ice_mass_new + sno_mass_new + sea_mass_new
+        
+    if math.isclose(total_old,total_new,abs_tol=err_tol): # Past 1e-14, choice of summing algorith begins to impact
+        print('Tracer '+data+' is conserving within a tolerance of '+str(err_tol))
+    else:
+        tot_diff = total_old - total_new
+        raise ValueError(str('Tracer '+data+' is not conserving. Total_old - Total_new = '+str(tot_diff)))
     return
 ################################# Main Code ###################################
     
@@ -565,13 +626,16 @@ def redist_vals(MOM,SIS,verbose):
                 MOM.h_size_mask[i,j] = size-1; 
     
     # 2: Create copies of original fields for conservation checks
-    if verbose:
-        o_temp_old = cp.deepcopy(MOM.o_temp); e_ice_old = cp.deepcopy(SIS.e_ice);
-        e_sno_old = cp.deepcopy(SIS.e_sno); h_oce_old = cp.deepcopy(MOM.h_oce);
-        h_ice_old = cp.deepcopy(SIS.h_ice); o_salt_old = cp.deepcopy(MOM.o_salt);
+    o_temp_old = cp.deepcopy(MOM.o_temp); e_ice_old    = cp.deepcopy(SIS.e_ice);
+    e_sno_old  = cp.deepcopy(SIS.e_sno);  h_oce_old    = cp.deepcopy(MOM.h_oce);
+    h_ice_old  = cp.deepcopy(SIS.h_ice);  o_salt_old   = cp.deepcopy(MOM.o_salt);
+    h_sno_old  = cp.deepcopy(SIS.h_sno);  ice_frac_old = cp.deepcopy(SIS.ice_frac);
+    
+    # Initialise the data structure in which fields from the previous run are stored
+    OLD = Chk_vars()
             
     # 3: Redistribute mass and tracers in and out of change points
-    # 
+    
     
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
@@ -584,7 +648,7 @@ def redist_vals(MOM,SIS,verbose):
               '\n Error in mass   = '+str(err_mass) + \
               '\n Error in energy = '+str(err_T) +\
               '\n Error in salt   = '+str(err_S))
-    # 3: Write new data to copies of old restarts. Several other variables 
+    # 4: Write new data to copies of old restarts. Several other variables 
     #    will also need to be ammended.
     
     

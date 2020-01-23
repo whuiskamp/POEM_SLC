@@ -3,14 +3,17 @@
 # based on redistribution of values/ changes in the land sea mask are also 
 # altered here before being saved to appropriate restarts.
 
-def write_rests(MOM,SIS,diag=""):
+import time
+from netCDF4 import Dataset as CDF
+
+def write_rests(MOM,SIS):
 # Load new restart files
 
 # Change all ocean/ ice fields that need to be changed
 
 # Save new fields to netCDF
 # Write change mask to netCDF
-    if diag:
+    if MOM.verbose:
         id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')
     else:
         id = CDF('dir', 'w')

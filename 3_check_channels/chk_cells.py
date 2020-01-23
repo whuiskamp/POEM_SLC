@@ -3,7 +3,7 @@
 # This script checks a given ocean mask for non-advective cells or cells that 
 # have been isolated from the ocean. When found, appropriate action is taken to
 # either make them land, or leave them alone (so long as they are stable).
-# REMEMBER THAT NORTH IS 'DOWN'!!!!
+# (REMEMBER THAT NORTH IS 'DOWN'when viewing in Spyder)
 
 import numpy as np
 import copy as cp

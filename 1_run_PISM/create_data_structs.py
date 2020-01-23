@@ -81,7 +81,21 @@ class SIS_vars:
         self.rough_mom      = rough_mom
         self.rough_moist    = rough_moist
         self.rough_heat     = rough_heat
-        
+        self.nk_ice         = nk_ice
+
+class Chk_vars:
+    # This class contains all 'old' fields of variables that will require stock-
+    # checking for conservation.
+    def __init__ (self):
+        self.o_temp         = o_temp_old
+        self.h_oce          = h_oce_old
+        self.o_salt         = o_salt_old
+        self.e_sno          = e_sno_old
+        self.e_ice          = e_ice_old
+        self.h_ice          = h_ice_old
+        self.h_sno          = h_sno_old
+        self.ice_frac       = ice_frac_old
+
 def init_data_structs(work_dir,test):
     if test:
         new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
@@ -165,8 +179,8 @@ def init_data_structs(work_dir,test):
     sig22        = SIS2_rest.variables['sig22'][0,:,:].data;             # The yy component of the stress tensor in Pa m (or N m-1)
     rough_mom    = SIS2_rest.variables['rough_mom'][0,:,:,:].data;       # The roughness for momentum at the ocean surface, as provided by ocean_rough_mod, apparently (?!) in m
     rough_heat = rough_mom; rough_moist = rough_mom                      # These are identical land-sea masks
-    coszen                                                               # Cosine of solar zenith angle
-    T_skin                                                               # The sea ice surface skin temperature (deg C)
+    #coszen                                                               # Cosine of solar zenith angle
+    #T_skin                                                               # The sea ice surface skin temperature (deg C)
     
     # Parameters and new vars
     o_mask       = Omask.variables['mask'][:,:]                          # Old ocean mask (boolean)
@@ -187,6 +201,7 @@ def init_data_structs(work_dir,test):
     grid_y     = lat.shape[0];                                           # Size of ocean latitude domain
     grid_z     = get_param(params_MOM,'NK');                             # Number of vertical levels in ocean
     cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
+    nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
     
     if test:
         ice_frac  = PISM_data.variables['mask'][:,:];
