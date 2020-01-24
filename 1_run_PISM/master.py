@@ -11,9 +11,9 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
-import create_data_structs
+# Import custom functions
+import create_data_structs 
 import chk_water_col 
-from regrid_lateral import get_param
 import chk_cells
 import SIS2_funcs
 

@@ -366,15 +366,15 @@ def fix_iso_cells(iso_mask,MOM):
     
     
     return
-grd = o_mask.shape      
+#grd = o_mask.shape      
 
-test = ID_iso_cells(17,10,o_mask,'right',10,grd)        
-if test is None:     
-    test = ID_iso_cells(17,10,o_mask,'left',10,grd)
-
-test = ID_iso_cells(18,9,o_mask,'right',40,grd)        
-if test is None:     
-    test = ID_iso_cells(18,9,o_mask,'left',40,grd)
+#test = ID_iso_cells(17,10,'right',MOM)        
+#if test is None:     
+#    test = ID_iso_cells(17,10,o_mask,'left',10,grd)
+#
+#test = ID_iso_cells(18,9,o_mask,'right',40,grd)        
+#if test is None:     
+#    test = ID_iso_cells(18,9,o_mask,'left',40,grd)
      
         
         

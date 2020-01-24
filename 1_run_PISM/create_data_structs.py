@@ -4,6 +4,8 @@
 from netCDF4 import Dataset as CDF
 import numpy as np
 import copy as cp
+from regrid_lateral import get_param
+from chk_water_col import calc_coast
 
 class MOM_vars:
     # This class contains all variables from the MOM6 restart file
@@ -110,7 +112,7 @@ def init_data_structs(work_dir,test):
     else:
 #        old_bathy = CDF(work_dir+'INPUT/topog.nc,'r')
         new_bathy = CDF(work_dir + '/INPUT/topog.nc','r')
-        MOM6_rest = CDF(work_dir + '/RESTART/MOM.res.nc,'r')
+        MOM6_rest = CDF(work_dir + '/RESTART/MOM.res.nc','r')
         SIS2_rest = CDF(work_dir + '/RESTART/ice_model.res.nc','r')
         #PISM_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
         #Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
@@ -119,9 +121,9 @@ def init_data_structs(work_dir,test):
     # Ocean
     h_oce        = MOM6_rest.variables['h'][0,:,:,:].data                # Ocean layer thickness (m)
     o_temp       = MOM6_rest.variables['Temp'][0,:,:,:].data             # Ocean potential temperature (deg C)
-    o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data #.astype(int) # Ocean salinity (ppt)
-    ave_eta      = MOM6_rest.variables['ave_ssh'][0,:,:]                 # Time-average sea surface height (m)
-    eta          = MOM6_rest.variables['sfc'][0,:,:]                     # Sea surface height (m)
+    o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data             # Ocean salinity (ppt)
+    ave_eta      = MOM6_rest.variables['ave_ssh'][0,:,:].data            # Time-average sea surface height (m)
+    eta          = MOM6_rest.variables['sfc'][0,:,:].data                # Sea surface height (m)
     u            = MOM6_rest.variables['u']                              # Zonal velocity (m s-1)
     v            = MOM6_rest.variables['v']                              # Meridional velocity (m s-1)
     u2           = MOM6_rest.variables['u2']                             # Auxiliary zonal velocity (m s-1)
@@ -162,7 +164,7 @@ def init_data_structs(work_dir,test):
     flux_t       = SIS2_rest.variables['flux_t'][0,:,:].data;            # The flux of sensible heat out of the ocean (W m-2)
     flux_q       = SIS2_rest.variables['flux_q'][0,:,:].data;            # The evaporative moisture flux out of the ocean (kg m-2 s-1)
     flux_salt    = SIS2_rest.variables['flux_salt'][0,:,:].data;         # The flux of salt out of the ocean (kg m-2)
-    flux_lw      = SIS2_rest.variables['flux_lq'][0,:,:].data;           # The longwave flux out of the ocean (W m-2)
+    flux_lw      = SIS2_rest.variables['flux_lw'][0,:,:].data;           # The longwave flux out of the ocean (W m-2)
     lprec        = SIS2_rest.variables['lprec'][0,:,:].data;             # The liquid precipitation flux into the ocean (kg m-2)
     fprec        = SIS2_rest.variables['fprec'][0,:,:].data;             # The frozen precipitation flux into the ocean (kg m-2)
     runoff       = SIS2_rest.variables['runoff'][0,:,:].data;            # Liquid water runoff into the ocean (kg m-2)
@@ -183,7 +185,7 @@ def init_data_structs(work_dir,test):
     #T_skin                                                               # The sea ice surface skin temperature (deg C)
     
     # Parameters and new vars
-    o_mask       = Omask.variables['mask'][:,:]                          # Old ocean mask (boolean)
+    o_mask       = Omask.variables['mask'][:,:].data                     # Old ocean mask (boolean)
     chng_mask    = np.full(o_mask.shape, np.nan);                        # Mask indicating where ocean/land cells are changing (0=no change, 1=land>ocean, -1=ocean>land)
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
     o_mask_new   = Omask.variables['mask'][:,:];                         # Updated ocean mask (boolean)
@@ -203,11 +205,11 @@ def init_data_structs(work_dir,test):
     cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
     nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
     
-    if test:
-        ice_frac  = PISM_data.variables['mask'][:,:];
-        ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0 
-    else:
-        ice_frac  = PISM_data.variables['ice_frac'][:,:] 
+#    if test:
+#        ice_frac  = PISM_data.variables['mask'][:,:];
+#        ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0 
+#    else:
+#        ice_frac  = PISM_data.variables['ice_frac'][:,:] 
      
       
     # Variable pre-processing
@@ -218,7 +220,7 @@ def init_data_structs(work_dir,test):
     
     # Identify coastal cells
     coast = calc_coast(o_mask)
-    
+    print(o_mask)
 ###############################################################################    
     # Initialise ocean data strucure
     MOM = MOM_vars()
