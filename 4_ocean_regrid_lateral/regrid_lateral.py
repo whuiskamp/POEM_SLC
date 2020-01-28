@@ -625,18 +625,7 @@ def redist_vals(MOM,SIS,verbose):
                     size+=1
                 MOM.h_size_mask[i,j] = size-1; 
     
-    # 2: Create copies of original fields for conservation checks
-    o_temp_old = cp.deepcopy(MOM.o_temp); e_ice_old    = cp.deepcopy(SIS.e_ice);
-    e_sno_old  = cp.deepcopy(SIS.e_sno);  h_oce_old    = cp.deepcopy(MOM.h_oce);
-    h_ice_old  = cp.deepcopy(SIS.h_ice);  o_salt_old   = cp.deepcopy(MOM.o_salt);
-    h_sno_old  = cp.deepcopy(SIS.h_sno);  ice_frac_old = cp.deepcopy(SIS.ice_frac);
-    
-    # Initialise the data structure in which fields from the previous run are stored
-    OLD = Chk_vars()
-            
-    # 3: Redistribute mass and tracers in and out of change points
-    
-    
+   # 2: Redistribute mass and tracers in and out of change points
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if np.isnan(MOM.chng_mask[i,j]) == False:
@@ -648,7 +637,7 @@ def redist_vals(MOM,SIS,verbose):
               '\n Error in mass   = '+str(err_mass) + \
               '\n Error in energy = '+str(err_T) +\
               '\n Error in salt   = '+str(err_S))
-    # 4: Write new data to copies of old restarts. Several other variables 
+    # 3: Write new data to copies of old restarts. Several other variables 
     #    will also need to be ammended.
     
     

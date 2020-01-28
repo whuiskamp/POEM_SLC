@@ -7,96 +7,16 @@ import copy as cp
 from regrid_lateral import get_param
 from chk_water_col import calc_coast
 
+# This class contains all variables from the MOM6 restart file
 class MOM_vars:
-    # This class contains all variables from the MOM6 restart file
-    def __init__ (self):
-        self.o_mask         = o_mask
-        self.o_mask_new     = o_mask_new
-        self.depth          = depth
-        self.ctrl_depth     = ctrl_depth
-        self.h_oce          = h_oce
-        self.h_sum          = h_sum
-        self.ave_eta        = ave_eta
-        self.eta            = eta
-        self.u              = u
-        self.v              = v
-        self.u2             = u2
-        self.v2             = v2
-        self.h2             = h2
-        self.uh             = uh
-        self.vh             = vh
-        self.diffu          = diffu
-        self.diffv          = diffv
-        self.ubtav          = ubtav
-        self.vbtav          = vbtav
-        self.ubt_IC         = ubt_IC
-        self.vbt_IC         = vbt_IC
-        self.uhbt_IC        = uhbt_IC
-        self.vhbt_IC        = vhbt_IC
-        try:
-            self.age        = age
-        except:
-            print('Age tracer not used')
-        self.Kd_shear       = Kd_shear
-        self.Kv_shear       = Kv_shear
-        self.TKE_turb       = TKE_turb
-        self.Kv_shear_Bu    = Kv_shear_Bu
-        self.Kv_slow        = Kv_slow
-        self.coast          = coast
-        self.chng_mask      = chng_mask
-        self.lat            = lat
-        self.lon            = lon
-        self.grid_x         = grid_x
-        self.grid_y         = grid_y
-        self.C_P            = C_P
-        self.H_to_kg_m2     = H_to_kg_m2
-        
-        
+    pass
+# This class contains all variables from the SIS2 restart file    
 class SIS_vars:
-    # This class contains all variables from the SIS2 restart file
-    def __init__ (self):
-        self.ice_frac       = ice_frac
-        self.h_ice          = h_ice
-        self.h_sno          = h_sno
-        self.s_ice          = s_ice
-        self.e_ice          = e_ice
-        self.e_sno          = e_sno
-        self.flux_u         = flux_u
-        self.flux_v         = flux_v
-        self.flux_t         = flux_t
-        self.flux_q         = flux_q
-        self.flux_salt      = flux_salt
-        self.flux_lw        = flux_lw
-        self.lprec          = lprec
-        self.fprec          = fprec
-        self.runoff         = runoff
-        self.calving        = calving
-        self.runoff_hflx    = runoff_hflx
-        self.p_surf         = p_surf
-        self.t_surf_ice     = t_surf_ice
-        self.h_pond         = h_pond
-        self.u_ice          = u_ice
-        self.v_ice          = v_ice
-        self.sig11          = sig11
-        self.sig12          = sig12
-        self.sig22          = sig22
-        self.rough_mom      = rough_mom
-        self.rough_moist    = rough_moist
-        self.rough_heat     = rough_heat
-        self.nk_ice         = nk_ice
-
+    pass
+# This class contains all 'old' fields of variables that will require stock-
+# checking for conservation.    
 class Chk_vars:
-    # This class contains all 'old' fields of variables that will require stock-
-    # checking for conservation.
-    def __init__ (self):
-        self.o_temp         = o_temp_old
-        self.h_oce          = h_oce_old
-        self.o_salt         = o_salt_old
-        self.e_sno          = e_sno_old
-        self.e_ice          = e_ice_old
-        self.h_ice          = h_ice_old
-        self.h_sno          = h_sno_old
-        self.ice_frac       = ice_frac_old
+    pass         
 
 def init_data_structs(work_dir,test):
     if test:
@@ -210,8 +130,12 @@ def init_data_structs(work_dir,test):
 #        ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0 
 #    else:
 #        ice_frac  = PISM_data.variables['ice_frac'][:,:] 
-     
-      
+    # Create copies of original fields for conservation checks 
+    o_temp_old = cp.deepcopy(o_temp); e_ice_old    = cp.deepcopy(e_ice);
+    e_sno_old  = cp.deepcopy(e_sno);  h_oce_old    = cp.deepcopy(h_oce);
+    h_ice_old  = cp.deepcopy(h_ice);  o_salt_old   = cp.deepcopy(o_salt);
+    h_sno_old  = cp.deepcopy(h_sno);  ice_frac_old = cp.deepcopy(ice_frac);
+    
     # Variable pre-processing
     h_oce[:,o_mask==0]  = np.nan                                         # Change land to NaN
     ave_eta[o_mask==0]  = np.nan                                         # Change land to NaN
@@ -224,8 +148,93 @@ def init_data_structs(work_dir,test):
 ###############################################################################    
     # Initialise ocean data strucure
     MOM = MOM_vars()
+    MOM.o_mask         = o_mask
+    MOM.o_mask_new     = o_mask_new
+    MOM.depth          = depth
+    MOM.ctrl_depth     = ctrl_depth
+    MOM.h_oce          = h_oce
+    MOM.h_sum          = h_sum
+    MOM.ave_eta        = ave_eta
+    MOM.eta            = eta
+    MOM.o_salt         = o_salt
+    MOM.o_temp         = o_temp
+    MOM.u              = u
+    MOM.v              = v
+    MOM.u2             = u2
+    MOM.v2             = v2
+    MOM.h2             = h2
+    MOM.uh             = uh
+    MOM.vh             = vh
+    MOM.diffu          = diffu
+    MOM.diffv          = diffv
+    MOM.ubtav          = ubtav
+    MOM.vbtav          = vbtav
+    MOM.ubt_IC         = ubt_IC
+    MOM.vbt_IC         = vbt_IC
+    MOM.uhbt_IC        = uhbt_IC
+    MOM.vhbt_IC        = vhbt_IC
+    try:
+        MOM.age        = age
+    except:
+        print('Age tracer not used')
+    MOM.Kd_shear       = Kd_shear
+    MOM.Kv_shear       = Kv_shear
+    MOM.TKE_turb       = TKE_turb
+    MOM.Kv_shear_Bu    = Kv_shear_Bu
+    MOM.Kv_slow        = Kv_slow
+    MOM.coast          = coast
+    MOM.chng_mask      = chng_mask
+    MOM.h_size_mask    = h_size_mask
+    MOM.lat            = lat
+    MOM.lon            = lon
+    MOM.grid_x         = grid_x
+    MOM.grid_y         = grid_y
+    MOM.grid_z         = grid_z
+    MOM.cell_area      = cell_area
+    MOM.C_P            = C_P
+    MOM.H_to_kg_m2     = H_to_kg_m2
     # Initialise sea ice data structure
     SIS = SIS_vars()
+    SIS.ice_frac       = ice_frac
+    SIS.h_ice          = h_ice
+    SIS.h_sno          = h_sno
+    SIS.s_ice          = s_ice
+    SIS.e_ice          = e_ice
+    SIS.e_sno          = e_sno
+    SIS.flux_u         = flux_u
+    SIS.flux_v         = flux_v
+    SIS.flux_t         = flux_t
+    SIS.flux_q         = flux_q
+    SIS.flux_salt      = flux_salt
+    SIS.flux_lw        = flux_lw
+    SIS.lprec          = lprec
+    SIS.fprec          = fprec
+    SIS.runoff         = runoff
+    SIS.calving        = calving
+    SIS.calving_hflx   = calving_hflx
+    SIS.runoff_hflx    = runoff_hflx
+    SIS.p_surf         = p_surf
+    SIS.t_surf_ice     = t_surf_ice
+    SIS.h_pond         = h_pond
+    SIS.u_ice          = u_ice
+    SIS.v_ice          = v_ice
+    SIS.sig11          = sig11
+    SIS.sig12          = sig12
+    SIS.sig22          = sig22
+    SIS.rough_mom      = rough_mom
+    SIS.rough_moist    = rough_moist
+    SIS.rough_heat     = rough_heat
+    SIS.nk_ice         = nk_ice
     
-    return MOM, SIS
+    OLD = Chk_vars()
+    OLD.o_temp         = o_temp_old
+    OLD.h_oce          = h_oce_old
+    OLD.o_salt         = o_salt_old
+    OLD.e_sno          = e_sno_old
+    OLD.e_ice          = e_ice_old
+    OLD.h_ice          = h_ice_old
+    OLD.h_sno          = h_sno_old
+    OLD.ice_frac       = ice_frac_old
+    
+    return MOM, SIS, OLD
     

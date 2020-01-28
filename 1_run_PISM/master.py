@@ -12,7 +12,7 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
 # Import custom functions
-import create_data_structs 
+from create_data_structs import init_data_structs 
 import chk_water_col 
 import chk_cells
 import SIS2_funcs
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     test = True # We'll use different datasets while running tests
     debugging = True # Activates verbose output and error-checking
     # Read in model files and create data structures
-    init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test)
+    MOM,SIS,OLD = init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test)
     # Check to see if cells need to change to/from land/ocean
     check_water_col
     # Implement changes to land sea mask and redistribute relevant tracers
