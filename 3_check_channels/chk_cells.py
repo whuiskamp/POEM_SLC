@@ -19,17 +19,17 @@ __status__ = "Prototype"
 
 # For testing, create dummy o_mask array with isolated cells
 # Normal square block
-o_mask = np.full([20,20],1)
-o_mask[0::,0] = 0; o_mask[0::,19] = 0; o_mask[0,0::] = 0; o_mask[19,0::] = 0;
-o_mask[11::,9] = 0; o_mask[11,9::] = 0;  #o_mask[11,10] = 1;
+#o_mask = np.full([20,20],1)
+#o_mask[0::,0] = 0; o_mask[0::,19] = 0; o_mask[0,0::] = 0; o_mask[19,0::] = 0;
+#o_mask[11::,9] = 0; o_mask[11,9::] = 0;  #o_mask[11,10] = 1;
+#
+## More complex shape
+#o_mask = np.full([20,20],1)
+#o_mask[0::,0] = 0; o_mask[0::,19] = 0; o_mask[0,0::] = 0; o_mask[19,0::] = 0;
+#o_mask[18,9] = 0; o_mask[17,10:16] = 0; o_mask[16,16] = 0; o_mask[16,18] = 0;
+#o_mask[15,17] = 0;
 
-# More complex shape
-o_mask = np.full([20,20],1)
-o_mask[0::,0] = 0; o_mask[0::,19] = 0; o_mask[0,0::] = 0; o_mask[19,0::] = 0;
-o_mask[18,9] = 0; o_mask[17,10:16] = 0; o_mask[16,16] = 0; o_mask[16,18] = 0;
-o_mask[15,17] = 0;
-
-def chk_cells(MOM):
+def chk_cells(MOM,FLAGS):
     # This function checks the ocean mask for cells or groups of cells isolated
     # from the ocean. For the tracing algorithm to function, we must first 
     # eliminate individual isolated cells.
@@ -45,15 +45,15 @@ def chk_cells(MOM):
             if MOM.chng_mask[i,j] == 1 or -1:
               # For algorithm to work, we must search in both 'directions'.
               # Try one, then the other.
-              iso_mask = ID_iso_cells(i,j,'right',MOM)
+              iso_mask = ID_iso_cells(i,j,'right',MOM,FLAGS)
               if iso_mask == None:
-                  iso_mask = ID_iso_cells(i,j,'left',MOM)
+                  iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
               # If we have isolated cells, determine what to do with them
               if iso_mask != None:
                   chng_mask_2, o_mask_2 = fix_iso_cells(iso_mask,MOM)
     return
 
-def ID_iso_cells(row,col,turn1,MOM):
+def ID_iso_cells(row,col,turn1,MOM,FLAGS):
     # This function consists of a square contour-tracing algorithm 
     # (https://tinyurl.com/qrlo5pm) that will identify an isolated group of 
     # ocean cells and return them as a masked array. The algorithm begins from 
@@ -94,21 +94,27 @@ def ID_iso_cells(row,col,turn1,MOM):
         if MOM.o_mask[row_new,col_new] == 0:
             turn = 'right'
             steps_taken += 1
+            #print('test 1')
         elif MOM.o_mask[row_new,col_new] == 1 and 1 not in iso_mask:
             turn = 'left'
             iso_mask[row_new,col_new] = 1
             count += 1
             steps_taken += 1
+            #print('test 2')
         elif MOM.o_mask[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask):
             turn = 'left'
             iso_mask[row_new,col_new] = 1
             count += 1
             steps_taken += 1
+            #print('test 3')
         elif MOM.o_mask[row_new,col_new] == 1 and not bounds_chk(row_new,col_new,iso_mask):
             turn = 'right'
             steps_taken += 1
-            
-        row_new, col_new, new_dir = update_orientation(new_dir,row_new,col_new,turn,grd)
+            #print('test 4')
+        try:    
+            row_new, col_new, new_dir = update_orientation(new_dir,row_new,col_new,turn,grd)
+        except UnboundLocalError:
+            print('Error at row='+str(row)+', col='+str(col))
         
         # If we arrive back at the initial cell in the same manner, we've
         # successfully mapped the isolated region, so break loop
@@ -119,11 +125,11 @@ def ID_iso_cells(row,col,turn1,MOM):
     if count == stop: 
         return
     elif 1 in iso_mask:
-        if MOM.verbose:
+        if FLAGS.verbose:
             print('Isolated cells found in vicinity of row = '+str(row)+', col = '+str(col))
         return iso_mask
     else:
-        return
+        return None
 
 def update_orientation(old_dir,row,col,turn,grd):
     # This function computes new indices and directions for the square tracing

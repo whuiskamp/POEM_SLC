@@ -128,7 +128,7 @@ def init_data_structs(work_dir,test,verbose):
     
     # Parameters and new vars
     o_mask       = Omask.variables['mask'][:,:].data                     # Old ocean mask (boolean)
-    chng_mask    = np.full(o_mask.shape, np.nan);                        # Mask indicating where ocean/land cells are changing (0=no change, 1=land>ocean, -1=ocean>land)
+    chng_mask    = np.full(o_mask.shape, 0);                             # Mask indicating where ocean/land cells are changing (0=no change, 1=land>ocean, -1=ocean>land)
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
     o_mask_new   = Omask.variables['mask'][:,:];                         # Updated ocean mask (boolean)
     C_P          = get_param(params_MOM,'C_P');                          # The heat capacity of seawater in MOM6 (J kg-1 K-1)
@@ -151,6 +151,7 @@ def init_data_structs(work_dir,test,verbose):
     if test:
         topo_chng = np.full(o_mask.shape, 0);
         ice_mask  = cp.deepcopy(o_mask);
+        ice_mask *= -1
 #        ice_frac  = PISM_data.variables['mask'][:,:];
 #        ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0 
 #    else:

@@ -224,7 +224,7 @@ def check_water_col(MOM,ICE,FLAGS):
     # topography height? Update mask & change mask
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if (ICE.ice_mask[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or 0 < MOM.depth_new[i,j] < 5: 
+            if (ICE.I_mask[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or 0 < MOM.depth_new[i,j] < 5: 
                 MOM.o_mask_new[i,j] = 0;
                 MOM.depth_new[i,j]  = 0; 
                 MOM.chng_mask[i,j]  = -1;
@@ -240,20 +240,21 @@ def check_water_col(MOM,ICE,FLAGS):
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if ICE.ice_mask[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth_new[i,j] >= 5:
+            if ICE.I_mask[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth_new[i,j] >= 5:
                 eta_mean = halo_eta(MOM.eta,i,j);
                 if eta_mean + MOM.depth_new[i,j] > 2: # optionally add: and coast[i,j] == 1: 
-#                    MOM.o_mask_new[i,j] = 1; # Do we need this? May be wise to leave out cells that will become ocean
+                    # Note the ocean mask is NOT changed. See documentation for why.
                     MOM.chng_mask[i,j]  = 1;
      
     # Finally, we need to make sure our new land-sea mask has not created isolated
     # cells or inland seas, if so, updated o_mask and chng_mask where required
     
     if np.any(MOM.chng_mask): # We only need to perform this test if cells change
-        MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM)               
+        MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM,FLAGS)               
         cells = np.count_nonzero(~np.isnan(MOM.chng_mask))
         if FLAGS.verbose:
             print('Number of cells changing this time-step is = '+ str(cells))
+        
         # Print figures showing new land mask and which cells are changing
         extent = (0, MOM.grid_x, MOM.grid_y, 0)
         _, ax = plt.subplots()
@@ -265,6 +266,10 @@ def check_water_col(MOM,ICE,FLAGS):
         ax.grid(which='minor', color='w', linewidth=0.5)
         #ax.set_frame_on(False)
         plt.savefig('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/chng_mask.pdf', dpi=150)
+    else:
+        # If no cells require changing, return a flag indicating that the rest
+        # of the tool is not required for this coupling step
+        FLAGS.cont = False
     
     
     

@@ -6,6 +6,15 @@
 import time
 from netCDF4 import Dataset as CDF
 
+__author__ = "Willem Huiskamp"
+__copyright__ = "Copyright 2020"
+__credits__ = ["Willem Huiskamp", ""]
+__license__ = "GPLv3"
+__version__ = "1.0.0"
+__maintainer__ = "Willem Huiskamp"
+__email__ = "huiskamp@pik-potsdam.de"
+__status__ = "Prototype"
+
 def write_rests(MOM,SIS,FLAGS):
 # Load new restart files
 

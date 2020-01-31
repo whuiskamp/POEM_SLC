@@ -32,9 +32,14 @@ if __name__ == "__main__":
     # Read in model files and create data structures
     MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test,verbose)
     # Check to see if cells need to change to/from land/ocean
-    check_water_col
+    check_water_col(MOM,ICE,FLAGS)
+    if FLAGS.cont == False:
+        # No cells are changing, copy new input files and restart model
+        print('No cells change during this coupling step') # Can add to this later? Which coupling step?
     # Implement changes to land sea mask and redistribute relevant tracers
-    redist_vals
+    else:
+        # There are cells that need altering, so run applicable scripts.
+        redist_vals
 
 
 
