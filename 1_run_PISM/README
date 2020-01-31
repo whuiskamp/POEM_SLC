@@ -1,0 +1,5 @@
+The current structure of the code handles bathymetry/topography in the following way:
+
+1) First is the default 'control' bathymetry used for the initial conditions       - topog_ctrl
+2) Second is the bathymetry used in the last integration of MOM6 before coupling   - topog_old
+3) Third is the new bathy that has been updated via fields from the VILMA model    - topog_new

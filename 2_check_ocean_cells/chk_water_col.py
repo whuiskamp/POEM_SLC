@@ -19,17 +19,18 @@
 ## Import packages ##
 
 import numpy as np
+from chk_cells import chk_cells
 import matplotlib.pyplot as plt
 
 
 __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2020"
-__credits__ = ["", ""]
+__credits__ = ["Willem Huiskamp", ""]
 __license__ = "GPLv3"
 __version__ = "1.0.0"
 __maintainer__ = "Willem Huiskamp"
 __email__ = "huiskamp@pik-potsdam.de"
-__status__ = "Prototype"
+__status__ = "Alpha"
 
 
 ############################## Define functions ###############################
@@ -165,7 +166,7 @@ def halo_eta(row,col,MOM):
 def calc_coast(omask):
     # This function calculates whether an ocean cells is a coastal cell or not 
     # and creates a mask. Coastal cells are 1, all others are 0.
-    # In:  omask      - ocean mask file
+    #  In: omask      - ocean mask file
     # Out: coast_mask - mask of coastal cells
     coast_mask = np.full(omask.shape,0)
     for i in range(omask.shape[0]):
@@ -218,42 +219,52 @@ def check_neighbour(data,row,col,flag):
     return criteria
 
 ################################# Main Code ###################################
-def check_water_col(MOM,ICE):
+def check_water_col(MOM,ICE,FLAGS):
     # Check 1 Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if (ICE.ice_frac[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or 0 < MOM.depth[i,j] < 5: 
+            if (ICE.ice_mask[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or 0 < MOM.depth_new[i,j] < 5: 
                 MOM.o_mask_new[i,j] = 0;
-                MOM.depth[i,j]      = 0; 
+                MOM.depth_new[i,j]  = 0; 
                 MOM.chng_mask[i,j]  = -1;
     
     # Check 2: Has change in SSH/ bathymetry created new land?
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if (MOM.ave_eta[i,j] + MOM.depth[i,j] < 2) and MOM.o_mask[i,j] > 0:
+            if (MOM.ave_eta[i,j] + MOM.depth_new[i,j] < 2) and MOM.o_mask[i,j] > 0:
                 MOM.o_mask_new[i,j] = 0;
-                MOM.depth[i,j]      = 0;
+                MOM.depth_new[i,j]  = 0;
                 MOM.chng_mask[i,j]  = -1;
         
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if ICE.ice_frac[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth[i,j] >= 5:
+            if ICE.ice_mask[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth_new[i,j] >= 5:
                 eta_mean = halo_eta(MOM.eta,i,j);
-                if eta_mean + MOM.depth[i,j] > 2: # optionally add: and coast[i,j] == 1: 
-                    MOM.o_mask_new[i,j] = 1;
+                if eta_mean + MOM.depth_new[i,j] > 2: # optionally add: and coast[i,j] == 1: 
+#                    MOM.o_mask_new[i,j] = 1; # Do we need this? May be wise to leave out cells that will become ocean
                     MOM.chng_mask[i,j]  = 1;
      
     # Finally, we need to make sure our new land-sea mask has not created isolated
     # cells or inland seas, if so, updated o_mask and chng_mask where required
     
     if np.any(MOM.chng_mask): # We only need to perform this test if cells change
-        MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM.o_mask_new,MOM.chng_mask)               
-        # Print figures showing new land mask and which cells are changing             
-                    
-    
-    
+        MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM)               
+        cells = np.count_nonzero(~np.isnan(MOM.chng_mask))
+        if FLAGS.verbose:
+            print('Number of cells changing this time-step is = '+ str(cells))
+        # Print figures showing new land mask and which cells are changing
+        extent = (0, MOM.grid_x, MOM.grid_y, 0)
+        _, ax = plt.subplots()
+        ax.imshow(np.flipud(MOM.o_mask[:,:]), extent=extent,cmap='Set3');
+        # Set minor ticks
+        ax.set_xticks(np.arange(0, 120, 1), minor=True);
+        ax.set_yticks(np.arange(0, 80, 1), minor=True);
+        # Add lines to make cells clearer
+        ax.grid(which='minor', color='w', linewidth=0.5)
+        #ax.set_frame_on(False)
+        plt.savefig('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/chng_mask.pdf', dpi=150)
     
     
     

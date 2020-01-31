@@ -14,10 +14,10 @@
 # 2: Mass and tracers to be created/removed calculated from target cell
 # 3: Tracers redistributed to/from halo cells (weighted by cell area)
 # 4: Mass redistributed (weighted by cell area)
-# 5: Correction applied to halo cells after mass redist. to ensure conservation
+# 5: Correction applied to halo cells after mass redist. to ensure tracer conservation
 # 6: Once all cells have been altered, checks are performed to ensure no 
-#    unnaturally large gradients in SSH or tracers.
-# (7): Where such gradients exist, smooth them.
+#    unnaturally large gradients in SSH.
+# (7): Where such gradients exist, smooth them. (currently not implemented)
 #
 # This script requires the following functions defined in 'chk_water_col.py':
 #   - get_halo; halo_eta; calc_coast
@@ -34,27 +34,27 @@ import subprocess as sp
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
-import os
+#import os
 import numpy as np
 import copy as cp
 import time
 import math
 import re
 #import matplotlib.pyplot as plt
-import argparse
+#import argparse
 from netCDF4 import Dataset as CDF
 # Custom functions
-from chk_water_col import get_halo, fold_cells, norm_cells
+from chk_water_col import get_halo
 from SIS2_funcs import sum_ice_enth
 
-__author__     = "Willem Huiskamp"
-__copyright__  = "Copyright 2019"
-__credits__    = ["", ""]
-__license__    = "GPLv3"
-__version__    = "0.0.1"
+__author__ = "Willem Huiskamp"
+__copyright__ = "Copyright 2020"
+__credits__ = ["Willem Huiskamp", ""]
+__license__ = "GPLv3"
+__version__ = "1.0.0"
 __maintainer__ = "Willem Huiskamp"
-__email__      = "huiskamp@pik-potsdam.de"
-__status__     = "Prototype"
+__email__ = "huiskamp@pik-potsdam.de"
+__status__ = "Alpha"
 
 ############################## Define functions ###############################
 def get_param(data,name=''):
@@ -557,43 +557,28 @@ def chk_conserv(OLD,SIS,MOM,data=""):
     return
 ################################# Main Code ###################################
     
-def redist_vals(MOM,SIS,verbose):
-    # Create new restarts for MOM and SIS
-    sp.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc',\
-                   '/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.new.nc'])
-    sp.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.nc',\
-                   '/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.new.nc'])
-#    test = True # We'll use different datasets while running tests
-    
-    # Open data files
-#    if test:
-#        MOM6_rest     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc','r')
-#        MOM6_rest_new = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.new.nc','r+')
-#        chng_file     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc','r')
-#        SIS2_rest     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.nc','r')
-#        SIS2_rest_new = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.new.nc','r+')
-#        Omask         = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
-#        grid          = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
-#        params_MOM    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM_parameter_doc.all','r').readlines()
-#        params_SIS    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/SIS_parameter_doc.all','r').readlines()
-        # Insert arg. parsing in here later
-        
-    #### Extract/define variables ####
-#    chng_mask    = chng_file.variables['chng_mask'][:,:];                 # Mask of cells to change
-#    h_size_mask  = np.zeros(chng_mask.shape,dtype=int);                   # Halo size mask
-#    h_ice        = SIS2_rest.variables['h_ice'][0,:,:,:].data;            # Ice thickness
-#    h_sno        = SIS2_rest.variables['h_snow'][0,:,:,:].data;           # Snow thickness
-#    ice_frac     = SIS2_rest.variables['part_size'][0,1:6,:,:].data;      # Ice fraction
-#    s_ice        = SIS2_rest.variables['sal_ice'][0,0,0,0,0].data;        # Salinity of sea ice in g/kg - it's a fixed value
-#    e_ice        = SIS2_rest.variables['enth_ice'][0,:,:,:,:].data;       # Enthalpy of sea ice in J
-#    e_sno        = SIS2_rest.variables['enth_snow'][0,:,:,:,:].data;      # Enthalpy of snow in J
-#    cell_area    = grid.variables['Ah'][:,:];                             # Area of h (tracer) cells
-#    h_oce        = MOM6_rest.variables['h'][0,:,:,:].data;                # Ocean layer thickness
-#    o_temp       = MOM6_rest.variables['Temp'][0,:,:,:].data;             # Ocean potential temperature (deg C)
-#    o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data.astype(int); # Ocean salinity (ppt)
-#    o_mask_new   = Omask.variables['mask'][:,:];                          # Updated ocean mask
-#    C_P          = get_param(params_MOM,'C_P');                           # The heat capacity of seawater in MOM6 (J kg-1 K-1)
-#    H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                    # grid cell to mass conversion factor (1 by default)
+def redist_vals(MOM,SIS,FLAGS):
+# This function uses the chng_mask variable to either initialise or remove 
+# ocean cells from the mondel domain. The process is currently designed to 
+# conservatively redistribute mass and tracers of energy (temperature) and
+# salt between the cell that requires modification and a series of surrounding
+# halo cells. 
+# 
+#  In: chng_mask    - Mask of cells to change
+#      h_size_mask  - Halo size mask
+#      h_ice        - Ice thickness
+#      h_sno        - Snow thickness
+#      ice_frac     - Ice fraction
+#      s_ice        - Salinity of sea ice in g/kg - it's a fixed value
+#      e_ice        - Enthalpy of sea ice in J
+#      e_sno        - Enthalpy of snow in J
+#      cell_area    - Area of h (tracer) cells
+#      h_oce        - Ocean layer thickness
+#      o_temp       - Ocean potential temperature (deg C)
+#      o_salt       - Ocean salinity (ppt)
+#      o_mask_new   - Updated ocean mask
+#      C_P          - The heat capacity of seawater in MOM6 (J kg-1 K-1)
+#      H_to_kg_m2   - grid cell to mass conversion factor (1 by default)
     
     # Variable pre-processing
 #    h_sum        = np.sum(MOM.h_oce,0);                           # Depth of water column (NOT depth of bathymetry)
@@ -607,7 +592,7 @@ def redist_vals(MOM,SIS,verbose):
             for k in range(lvls):
                 MOM.wght[k,i,j]= MOM.h_oce[k,i,j]/ \
                 MOM.h_oce[:MOM.h_lvls[i,j],i,j].sum(0)                
-    o_mask_redist = cp.deepcopy(MOM.o_mask_new)                   # New ocean calls masked out. We need a seperate ocean mask for the redistribution  
+    o_mask_redist = cp.deepcopy(MOM.o_mask_new)                   # New ocean cells masked out. We need a seperate ocean mask for the redistribution  
     o_mask_redist[MOM.chng_mask==1] = 0;                          # code, as we cannot allow cells that are yet to be initialised act as halo cells.
     
         
@@ -631,14 +616,14 @@ def redist_vals(MOM,SIS,verbose):
             if np.isnan(MOM.chng_mask[i,j]) == False:
                 redist_tracers(MOM,SIS,i,j,'temp'); redist_tracers(MOM,SIS,i,j,'salt'); 
                 MOM.h_oce, MOM.o_salt, MOM.o_temp = redist_mass(MOM,SIS,i,j)
-    if verbose:
+    if FLAGS.verbose:
         err_mass, err_T, err_S = chk_conserv()
         print('Redistribution of mass and tracers complete.' \
               '\n Error in mass   = '+str(err_mass) + \
               '\n Error in energy = '+str(err_T) +\
               '\n Error in salt   = '+str(err_S))
-    # 3: Write new data to copies of old restarts. Several other variables 
-    #    will also need to be ammended.
+    
+   
     
     
     

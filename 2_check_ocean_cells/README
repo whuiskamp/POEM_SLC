@@ -13,8 +13,6 @@ Issue 3: Function will be written so that the radius (in cells) of the halo can 
 		 This ratio criteria should be checked either within the function itself and if it is not met, the radius expands by 1 and the process is re-run.
 ###Implemented###
 
-
-
 Issues unrelated to this tool:
 	At some point, there needs to be a check ensuring that, when removing water from halo cells, that these cells are not now too shallow. While this should never really be an issue due to the ratio criteria and the min depth criteria, it's something that needs to be watched.
 
@@ -23,10 +21,12 @@ A note: get_halo in check_water_col.py has to be written in two parts: one for t
 
 TO DO LIST
 
-Create universal variables for ncols and nrows in the data we are using, so I don't have to keep using var.shape. Careful, these variables are already defined in some functions...
+
 
 Output file should not only have the change mask, but also any other field that needed to be changed (such as depth, omask etc or perhaps just delta versions of these fields). Should probably also assign lat/lon to each variable.
 
-Create a list of variables and their descriptions at the start of the file (?)
+
 
 Currently, to create an ocean cell, the tool simply checks: that icefrac is less than 0.3 and that relative sea level is greater than 2m. It is worth testing later if we should include the criteria that only coastal cells may become ocean.
+
+NOTE: When we create the new land-sea mask in this script, it may be required that we do NOT change the mask when cells are to become ocean. This is because when we redistribute mass and tracers later, that code will try to extract mass and tracers from an ocean cell that may not yet be initialised. In this way, it is probably a better idea to treat them as land during this process, only changing the land-sea mask AFTER they have been initialised.

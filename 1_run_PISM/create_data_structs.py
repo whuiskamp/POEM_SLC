@@ -7,20 +7,39 @@ import copy as cp
 from regrid_lateral import get_param
 from chk_water_col import calc_coast
 
+__author__ = "Willem Huiskamp"
+__copyright__ = "Copyright 2020"
+__credits__ = ["Willem Huiskamp", ""]
+__license__ = "GPLv3"
+__version__ = "1.0.0"
+__maintainer__ = "Willem Huiskamp"
+__email__ = "huiskamp@pik-potsdam.de"
+__status__ = "Prototype"
+
+# Class containing option flags
+class option_flags:
+    pass
 # This class contains all variables from the MOM6 restart file
 class MOM_vars:
     pass
 # This class contains all variables from the SIS2 restart file    
 class SIS_vars:
     pass
+# This class contains all relevant variables from the PISM restart file
+class PISM_vars:
+    pass
+# This class contains all relevant variables from the VILMA restart file
+class VILMA_vars:
+    pass
 # This class contains all 'old' fields of variables that will require stock-
 # checking for conservation.    
 class Chk_vars:
     pass         
 
-def init_data_structs(work_dir,test):
+def init_data_structs(work_dir,test,verbose):
     if test:
         new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
+        old_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
         ctrl_bathy= CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
         MOM6_rest = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc','r')
         SIS2_rest = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.nc','r')
@@ -30,12 +49,15 @@ def init_data_structs(work_dir,test):
         params_MOM    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM_parameter_doc.all','r').readlines()
         params_SIS    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/SIS_parameter_doc.all','r').readlines()
     else:
-#        old_bathy = CDF(work_dir+'INPUT/topog.nc,'r')
-        new_bathy = CDF(work_dir + '/INPUT/topog.nc','r')
+        old_bathy = CDF(work_dir + 'INPUT/topog.nc','r')
+        new_bathy = CDF(work_dir + '/tmp/topog.nc','r')
         MOM6_rest = CDF(work_dir + '/RESTART/MOM.res.nc','r')
         SIS2_rest = CDF(work_dir + '/RESTART/ice_model.res.nc','r')
+        params_MOM    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM_parameter_doc.all','r').readlines()
+        params_SIS    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/SIS_parameter_doc.all','r').readlines()
         #PISM_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
-        #Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
+        #VILMA_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
+        Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
     
     # Extract/ define variables
     # Ocean
@@ -113,8 +135,9 @@ def init_data_structs(work_dir,test):
     H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                   # grid cell to mass conversion factor (1 by default)
     
     # Geography
-    depth      = new_bathy.variables['depth'][:,:]; new_bathy.close()    # Ocean depth of current simulation (m)
-    ctrl_depth = ctrl_bathy.variables['depth'][:,:]; ctrl_bathy.close()  # The control, pre-industrial bathymetry (m)
+    depth_new  = new_bathy.variables['depth'][:,:]; new_bathy.close()    # Ocean depth of current simulation (m)
+    depth_old  = old_bathy.variables['depth'][:,:]; old_bathy.close()    # Ocean depth of previous simulation (m)
+    depth_ctrl = ctrl_bathy.variables['depth'][:,:]; ctrl_bathy.close()  # The control, pre-industrial bathymetry (m)
     
     # Grid variables
     lat        = grid.variables['geolat'][:,:];                          # Latitude of tracer cell-centres
@@ -125,7 +148,9 @@ def init_data_structs(work_dir,test):
     cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
     nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
     
-#    if test:
+    if test:
+        topo_chng = np.full(o_mask.shape, 0);
+        ice_mask  = cp.deepcopy(o_mask);
 #        ice_frac  = PISM_data.variables['mask'][:,:];
 #        ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0 
 #    else:
@@ -144,14 +169,20 @@ def init_data_structs(work_dir,test):
     
     # Identify coastal cells
     coast = calc_coast(o_mask)
-    print(o_mask)
+    
 ###############################################################################    
+    # Initialise options class
+    FLAGS = option_flags()
+    FLAGS.test         = test
+    FLAGS.verbose      = verbose
+    
     # Initialise ocean data strucure
     MOM = MOM_vars()
     MOM.o_mask         = o_mask
     MOM.o_mask_new     = o_mask_new
-    MOM.depth          = depth
-    MOM.ctrl_depth     = ctrl_depth
+    MOM.depth_new      = depth_new
+    MOM.depth_old      = depth_old
+    MOM.depth_ctrl     = depth_ctrl
     MOM.h_oce          = h_oce
     MOM.h_sum          = h_sum
     MOM.ave_eta        = ave_eta
@@ -176,7 +207,7 @@ def init_data_structs(work_dir,test):
     try:
         MOM.age        = age
     except:
-        print('Age tracer not used')
+        pass
     MOM.Kd_shear       = Kd_shear
     MOM.Kv_shear       = Kv_shear
     MOM.TKE_turb       = TKE_turb
@@ -193,6 +224,7 @@ def init_data_structs(work_dir,test):
     MOM.cell_area      = cell_area
     MOM.C_P            = C_P
     MOM.H_to_kg_m2     = H_to_kg_m2
+    
     # Initialise sea ice data structure
     SIS = SIS_vars()
     SIS.ice_frac       = ice_frac
@@ -226,6 +258,15 @@ def init_data_structs(work_dir,test):
     SIS.rough_heat     = rough_heat
     SIS.nk_ice         = nk_ice
     
+    # Initialise ice sheet data structure
+    ICE = PISM_vars()
+    ICE.I_mask         = ice_mask
+    
+    # Initialise solid earth data structure
+    ETH = VILMA_vars()
+    ETH.Dlta_topo      = topo_chng
+    
+    # Initialise stock checking data structure
     OLD = Chk_vars()
     OLD.o_temp         = o_temp_old
     OLD.h_oce          = h_oce_old
@@ -236,5 +277,5 @@ def init_data_structs(work_dir,test):
     OLD.h_sno          = h_sno_old
     OLD.ice_frac       = ice_frac_old
     
-    return MOM, SIS, OLD
+    return MOM, SIS, OLD, ICE, ETH, FLAGS 
     

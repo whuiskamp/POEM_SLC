@@ -8,6 +8,15 @@
 import numpy as np
 import copy as cp
 
+__author__ = "Willem Huiskamp"
+__copyright__ = "Copyright 2020"
+__credits__ = ["Willem Huiskamp", ""]
+__license__ = "GPLv3"
+__version__ = "1.0.0"
+__maintainer__ = "Willem Huiskamp"
+__email__ = "huiskamp@pik-potsdam.de"
+__status__ = "Prototype"
+
 # For testing, create dummy o_mask array with isolated cells
 # Normal square block
 o_mask = np.full([20,20],1)

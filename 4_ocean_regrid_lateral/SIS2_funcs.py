@@ -8,6 +8,15 @@
 
 import numpy as np
 
+__author__ = "Willem Huiskamp"
+__copyright__ = "Copyright 2020"
+__credits__ = ["Willem Huiskamp", ""]
+__license__ = "GPLv3"
+__version__ = "1.0.0"
+__maintainer__ = "Willem Huiskamp"
+__email__ = "huiskamp@pik-potsdam.de"
+__status__ = "Production"
+
 def enthalpy_liquid_freeze(S):
     # enthalpy_liquid_freeze returns the enthalpy of liquid water at the freezing
     # point for a given salinity. Taken from SIS2_ice_thm.F90

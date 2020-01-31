@@ -6,14 +6,14 @@
 import time
 from netCDF4 import Dataset as CDF
 
-def write_rests(MOM,SIS):
+def write_rests(MOM,SIS,FLAGS):
 # Load new restart files
 
 # Change all ocean/ ice fields that need to be changed
 
 # Save new fields to netCDF
 # Write change mask to netCDF
-    if MOM.verbose:
+    if FLAGS.test:
         id = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/change_mask.nc', 'w')
     else:
         id = CDF('dir', 'w')
