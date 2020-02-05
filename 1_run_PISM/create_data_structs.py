@@ -127,10 +127,10 @@ def init_data_structs(work_dir,test,verbose):
     #T_skin                                                               # The sea ice surface skin temperature (deg C)
     
     # Parameters and new vars
-    o_mask       = Omask.variables['mask'][:,:].data                     # Old ocean mask (boolean)
+    o_mask       = np.rint(Omask.variables['mask'][:,:].data);           # Old ocean mask (boolean)
     chng_mask    = np.full(o_mask.shape, 0);                             # Mask indicating where ocean/land cells are changing (0=no change, 1=land>ocean, -1=ocean>land)
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
-    o_mask_new   = Omask.variables['mask'][:,:];                         # Updated ocean mask (boolean)
+    o_mask_new   = np.rint(Omask.variables['mask'][:,:].data);           # Updated ocean mask (boolean)
     C_P          = get_param(params_MOM,'C_P');                          # The heat capacity of seawater in MOM6 (J kg-1 K-1)
     H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                   # grid cell to mass conversion factor (1 by default)
     
@@ -144,7 +144,7 @@ def init_data_structs(work_dir,test,verbose):
     lon        = grid.variables['geolon'][:,:];                          # Longitude of tracer cell-centres
     grid_x     = lon.shape[1];                                           # Size of ocean longitude domain 
     grid_y     = lat.shape[0];                                           # Size of ocean latitude domain
-    grid_z     = get_param(params_MOM,'NK');                             # Number of vertical levels in ocean
+    grid_z     = int(get_param(params_MOM,'NK'));                        # Number of vertical levels in ocean
     cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
     nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
     

@@ -30,14 +30,14 @@
 # remain land in this mask! This is done to ensure a smoother initialisation of new
 # ocean points.
 
-import subprocess as sp
+#import subprocess as sp
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
 #import os
 import numpy as np
 import copy as cp
-import time
+#import time
 import math
 import re
 #import matplotlib.pyplot as plt
@@ -77,11 +77,11 @@ def get_param(data,name=''):
 
 def halo_calc(row,col,data,MOM,size,operation):
     # This function calculates the sum or mean of some variable in halo cells
-    # Note: this should NOT be used for tracers, as no consideration is made 
-    # regarding volume of the gridcell/water column.
+    # Note: this should NOT be used for tracers with the 'sum' flag, 
+    # as no consideration is made regarding volume of the gridcell/water column.
     # In:  row       - latitude index
     #      col       - longitude index
-    #      data      - Data for which to calculate halo values
+    #      data      - Data for which to calculate halo values (2D field)
     #      omask     - Ocean mask (ocean is 1, land is 0)
     #      size      - size of the halo in # grid cells
     #      operation - Sum or mean of halo cells
@@ -99,18 +99,19 @@ def halo_calc(row,col,data,MOM,size,operation):
     elif operation == 'mean':
         ave_halo = np.mean(dat_halo);
         return ave_halo, halo, dat_masked
+        
     
-def cell_weights(row,col,size,omask,cell_area):
+def cell_weights(row,col,size,MOM,cell_area):
     # This function calculate the cells weights for redistributing mass and tracers.
     # Weights are based on cell area
     # In:  row       - latitude index
     #      col       - longitude index
     #      size      - size of the halo in # grid cells
-    #      omask     - Ocean mask (ocean is 1, land is 0)
+    #      MOM       - Ocean data structure
     # Out: c_weight  - Masked array containing weights (summing to 1)
     #      halo      - The halo for which weights were calculated
     c_weight = np.full(cell_area.shape,np.nan)
-    halo_sum,halo,dat_halo = halo_calc(row,col,cell_area,omask,size,'sum');
+    halo_sum,halo,dat_halo = halo_calc(row,col,cell_area,MOM,size,'sum');
     c_weight[halo] = dat_halo[halo]/halo_sum
     return c_weight, halo
 
@@ -606,7 +607,7 @@ def redist_vals(MOM,SIS,FLAGS):
                 halo_sum = 0;
                 size = 1;
                 while halo_sum < MOM.cell_area[i,j]*10:
-                    halo_sum,_,_ = halo_calc(i,j,MOM.cell_area,MOM.o_mask_new,size,'sum');
+                    halo_sum,_,_ = halo_calc(i,j,MOM.cell_area,MOM,size,'sum');
                     size+=1
                 MOM.h_size_mask[i,j] = size-1; 
     

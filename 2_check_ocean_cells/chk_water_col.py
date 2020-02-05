@@ -155,7 +155,7 @@ def halo_eta(row,col,MOM):
     # Out:  mean_eta   - The average sea level height calculated in a halo around
     #                    cell (row,col)
     
-    if np.isnan(MOM.eta[0,0]) == False:
+    if ~np.isnan(MOM.eta[0,0]):
         raise ValueError(str('eta not properly formatted. Land = '+str(MOM.eta[0,0]) \
                              + ' not NaN'))
     halo = get_halo(MOM,row,col,1,MOM.o_mask_new)
@@ -250,8 +250,8 @@ def check_water_col(MOM,ICE,FLAGS):
     # cells or inland seas, if so, updated o_mask and chng_mask where required
     
     if np.any(MOM.chng_mask): # We only need to perform this test if cells change
-        MOM.o_mask_new, MOM.chng_mask = chk_cells(MOM,FLAGS)               
-        cells = np.count_nonzero(~np.isnan(MOM.chng_mask))
+        chk_cells(MOM,FLAGS)               
+        cells = np.count_nonzero(MOM.chng_mask)
         if FLAGS.verbose:
             print('Number of cells changing this time-step is = '+ str(cells))
         

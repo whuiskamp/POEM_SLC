@@ -42,15 +42,16 @@ def chk_cells(MOM,FLAGS):
         
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if MOM.chng_mask[i,j] == 1 or -1:
-              # For algorithm to work, we must search in both 'directions'.
-              # Try one, then the other.
-              iso_mask = ID_iso_cells(i,j,'right',MOM,FLAGS)
-              if iso_mask == None:
-                  iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
-              # If we have isolated cells, determine what to do with them
-              if iso_mask != None:
-                  chng_mask_2, o_mask_2 = fix_iso_cells(iso_mask,MOM)
+            if MOM.chng_mask[i,j] == 1 or MOM.chng_mask[i,j] == -1:
+                print('row='+str(i)+'col='+str(j))
+                # For algorithm to work, we must search in both 'directions'.
+                # Try one, then the other.
+                iso_mask = ID_iso_cells(i,j,'right',MOM,FLAGS)
+                if iso_mask is None:
+                    iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
+                # If we have isolated cells, determine what to do with them
+                if iso_mask is not None:
+                    chng_mask_2, o_mask_2 = fix_iso_cells(iso_mask,MOM)
     return
 
 def ID_iso_cells(row,col,turn1,MOM,FLAGS):
@@ -79,35 +80,35 @@ def ID_iso_cells(row,col,turn1,MOM,FLAGS):
     #         
     count       = 0       # Number of isolated ocean cells identified
     steps_taken = 0       # Number of cells the tracker has moved through
-    grd = MOM.o_mask.shape
+    grd = MOM.o_mask_new.shape
     stop = MOM.grid_y/2 # Pick an arbitrary stopping criteria scaled by grid size
     loopy       = stop*10 # If this many steps are taken, you've got an infinite loop 
     # For first step
     row_new, col_new, new_dir = update_orientation('N',row,col,turn1,grd)
     row_1 = cp.deepcopy(row_new); col_1 = cp.deepcopy(col_new);
     dir_1 = cp.deepcopy(new_dir)
-    iso_mask = np.full(MOM.o_mask.shape,0)
+    iso_mask = np.full(MOM.o_mask_new.shape,0)
     
     # Extra check is needed if ocean is isolated by land cells only connected
     # by their vertices. The square tracing algorithm cannot normally handle this.
     while count < stop and steps_taken < loopy:
-        if MOM.o_mask[row_new,col_new] == 0:
+        if MOM.o_mask_new[row_new,col_new] == 0:
             turn = 'right'
             steps_taken += 1
             #print('test 1')
-        elif MOM.o_mask[row_new,col_new] == 1 and 1 not in iso_mask:
+        elif MOM.o_mask_new[row_new,col_new] == 1 and 1 not in iso_mask:
             turn = 'left'
             iso_mask[row_new,col_new] = 1
             count += 1
             steps_taken += 1
             #print('test 2')
-        elif MOM.o_mask[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask):
+        elif MOM.o_mask_new[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask):
             turn = 'left'
             iso_mask[row_new,col_new] = 1
             count += 1
             steps_taken += 1
             #print('test 3')
-        elif MOM.o_mask[row_new,col_new] == 1 and not bounds_chk(row_new,col_new,iso_mask):
+        elif MOM.o_mask_new[row_new,col_new] == 1 and not bounds_chk(row_new,col_new,iso_mask):
             turn = 'right'
             steps_taken += 1
             #print('test 4')
