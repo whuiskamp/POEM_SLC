@@ -21,6 +21,7 @@
 import numpy as np
 from chk_cells import chk_cells
 import matplotlib.pyplot as plt
+import copy as cp
 
 
 __author__ = "Willem Huiskamp"
@@ -35,7 +36,7 @@ __status__ = "Alpha"
 
 ############################## Define functions ###############################
 
-def get_halo(MOM,row,col,size,omask):
+def get_halo(MOM,row,col,size,omask,flag=''):
     # This function creates a halo for a grid cell defined at [row,col]
     # in a 2D array of radius 'size' 
     # In:   MOM      - Data structure containing all ocean restart data
@@ -44,6 +45,7 @@ def get_halo(MOM,row,col,size,omask):
     #      size      - Radius of halo in gridcells
     #      grid_x    - Size of the ocean grid (longitude)
     #      grid_y    - Size of the ocean grid (latitude)
+    #        flag    - Ocean cells only = true, otherwise return whole halo mask
     # Out: halo_mask - Boolean mask indicating halo cells
         
     # Define variables
@@ -88,9 +90,10 @@ def get_halo(MOM,row,col,size,omask):
     halo_cells = norm_cells(col_E,col_W,row_S,row_N,MOM.grid_x).astype(int) 
     # Add halo cells to mask
     halo_mask[halo_cells[0,:],halo_cells[1,:]] = True; 
-    # Finally, remove the cell around which the halo is made 
-    # and set all land points to false
-    halo_mask[row,col] = False; halo_mask[omask==0] = False    
+    # Finally, if we only want ocean cells, remove the cell around which the 
+    # halo is made and set all land points to false
+    if flag == True:
+        halo_mask[row,col] = False; halo_mask[omask==0] = False    
     
     return halo_mask
 
@@ -158,7 +161,7 @@ def halo_eta(row,col,MOM):
     if ~np.isnan(MOM.eta[0,0]):
         raise ValueError(str('eta not properly formatted. Land = '+str(MOM.eta[0,0]) \
                              + ' not NaN'))
-    halo = get_halo(MOM,row,col,1,MOM.o_mask_new)
+    halo = get_halo(MOM,row,col,1,MOM.o_mask_new,True)
     eta_halo = MOM.eta[halo==True]
     mean_eta = np.mean(eta_halo)
     
@@ -254,11 +257,14 @@ def check_water_col(MOM,ICE,FLAGS):
         cells = np.count_nonzero(MOM.chng_mask)
         if FLAGS.verbose:
             print('Number of cells changing this time-step is = '+ str(cells))
-        
+        FLAGS.cont = True
         # Print figures showing new land mask and which cells are changing
+        # Create dummy variable where changing cells are added to an o_mask
+        dummy = cp.deepcopy(MOM.o_mask)
+        dummy[MOM.chng_mask==1] = 3; dummy[MOM.chng_mask==-1] = -3;
         extent = (0, MOM.grid_x, MOM.grid_y, 0)
         _, ax = plt.subplots()
-        ax.imshow(np.flipud(MOM.o_mask[:,:]), extent=extent,cmap='Set3');
+        ax.imshow(np.flipud(dummy[:,:]), extent=extent,cmap='Set3');
         # Set minor ticks
         ax.set_xticks(np.arange(0, 120, 1), minor=True);
         ax.set_yticks(np.arange(0, 80, 1), minor=True);

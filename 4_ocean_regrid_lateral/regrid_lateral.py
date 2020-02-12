@@ -79,19 +79,19 @@ def halo_calc(row,col,data,MOM,size,operation):
     # This function calculates the sum or mean of some variable in halo cells
     # Note: this should NOT be used for tracers with the 'sum' flag, 
     # as no consideration is made regarding volume of the gridcell/water column.
-    # In:  row       - latitude index
-    #      col       - longitude index
-    #      data      - Data for which to calculate halo values (2D field)
-    #      omask     - Ocean mask (ocean is 1, land is 0)
-    #      size      - size of the halo in # grid cells
-    #      operation - Sum or mean of halo cells
-    # Out: ave_halo   - Average value for a variable in halo cells
-    #      sum_halo   - Sum of values for a variable in halo cells
-    #      halo       - Mask of the halo
-    #      dat_masked - Returns original data array, but masked with the halo
-    halo = get_halo(MOM,row,col,size,MOM.o_mask_New) # Must use *new* omask for the halo calc
+    # In:  row               - latitude index
+    #      col               - longitude index
+    #      data              - Data for which to calculate halo values (2D field)
+    #      o_mask_redist     - Ocean mask (ocean is 1, land is 0) new ocean cells still marked as land
+    #      size              - size of the halo in # grid cells
+    #      operation         - Sum or mean of halo cells
+    # Out: ave_halo          - Average value for a variable in halo cells
+    #      sum_halo          - Sum of values for a variable in halo cells
+    #      halo              - Mask of the halo
+    #      dat_masked        - Returns original data array, but masked with the halo
+    halo = get_halo(MOM,row,col,size,MOM.o_mask_redist,True) # Must use *new* omask for the halo calc
     dat_halo = data[halo==True]
-    dat_masked = np.full(MOM.omask.shape,np.nan)
+    dat_masked = np.full(MOM.o_mask.shape,np.nan)
     dat_masked[halo] = data[halo];
     if operation == 'sum':
         sum_halo = np.sum(dat_halo);
@@ -101,7 +101,7 @@ def halo_calc(row,col,data,MOM,size,operation):
         return ave_halo, halo, dat_masked
         
     
-def cell_weights(row,col,size,MOM,cell_area):
+def cell_weights(row,col,size,MOM):
     # This function calculate the cells weights for redistributing mass and tracers.
     # Weights are based on cell area
     # In:  row       - latitude index
@@ -110,8 +110,8 @@ def cell_weights(row,col,size,MOM,cell_area):
     #      MOM       - Ocean data structure
     # Out: c_weight  - Masked array containing weights (summing to 1)
     #      halo      - The halo for which weights were calculated
-    c_weight = np.full(cell_area.shape,np.nan)
-    halo_sum,halo,dat_halo = halo_calc(row,col,cell_area,MOM,size,'sum');
+    c_weight = np.full([MOM.grid_y, MOM.grid_x],np.nan)
+    halo_sum,halo,dat_halo = halo_calc(row,col,MOM.cell_area,MOM,size,'sum');
     c_weight[halo] = dat_halo[halo]/halo_sum
     return c_weight, halo
 
@@ -185,7 +185,7 @@ def redist_mass(MOM,SIS,row,col):
     # 
     
     size         = MOM.h_size_mask[row,col].astype(int);      # Def. halo radius
-    c_wgts, halo = cell_weights(row,col,size,MOM.o_mask_new,MOM.cell_area); # Get weights for re-distribution
+    c_wgts, halo = cell_weights(row,col,size,MOM.o_mask_redist,MOM.cell_area); # Get weights for re-distribution
     ice_mass = 0; sno_mass = 0;                           # Initialise remaining vars
     # 1. Are we filling or emptying a cell?
     if MOM.chng_mask[row,col] == -1: # Emptying a cell (ocean -> Land)
@@ -346,7 +346,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
     #      o_salt_new  - Updated salinity field
     
     size         = MOM.h_size_mask[row,col].astype(int);                       # Def. halo radius
-    c_wgts, halo = cell_weights(row,col,size,MOM.o_mask_redist,MOM.cell_area); # Get weights for re-distribution
+    c_wgts, halo = cell_weights(row,col,size,MOM); # Get weights for re-distribution
     ice_tot      = 0;
     
     # Is ocean becoming land?
@@ -577,7 +577,7 @@ def redist_vals(MOM,SIS,FLAGS):
 #      h_oce        - Ocean layer thickness
 #      o_temp       - Ocean potential temperature (deg C)
 #      o_salt       - Ocean salinity (ppt)
-#      o_mask_new   - Updated ocean mask
+#      o_mask_redist- Updated ocean mask (cells becoming ocean are marked as land)
 #      C_P          - The heat capacity of seawater in MOM6 (J kg-1 K-1)
 #      H_to_kg_m2   - grid cell to mass conversion factor (1 by default)
     
@@ -587,14 +587,14 @@ def redist_vals(MOM,SIS,FLAGS):
     tmp          = np.where(tmp>.01, tmp, np.nan);                # While all layers always exist, we only want them if they have 
     MOM.h_lvls   = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers, defined has having h > 0.001)
     MOM.wght     = np.full(MOM.h_oce.shape,np.nan)                # Cell weights for mass redistribution
-    for i in range(MOM.h_lvls.shape[0]):                              # we add mass to a layer proportional to its thickness
+    for i in range(MOM.h_lvls.shape[0]):                          # we add mass to a layer proportional to its thickness
         for j in range(MOM.h_lvls.shape[1]):
             lvls = MOM.h_lvls[i,j];
             for k in range(lvls):
                 MOM.wght[k,i,j]= MOM.h_oce[k,i,j]/ \
                 MOM.h_oce[:MOM.h_lvls[i,j],i,j].sum(0)                
-    o_mask_redist = cp.deepcopy(MOM.o_mask_new)                   # New ocean cells masked out. We need a seperate ocean mask for the redistribution  
-    o_mask_redist[MOM.chng_mask==1] = 0;                          # code, as we cannot allow cells that are yet to be initialised act as halo cells.
+    MOM.o_mask_redist = cp.deepcopy(MOM.o_mask_new)               # New ocean cells masked out. We need a seperate ocean mask for the redistribution  
+    MOM.o_mask_redist[MOM.chng_mask==1] = 0;                      # code, as we cannot allow cells that are yet to be initialised act as halo cells.
     
         
     # 1: Set up and check halos for all change points, making the halos bigger when required
@@ -602,7 +602,7 @@ def redist_vals(MOM,SIS,FLAGS):
     # find the correct value. Therefore, when we assign it to h_size_mask, we need to subtract 1 again.
     for i in range(MOM.chng_mask.shape[0]):
         for j in range(MOM.chng_mask.shape[1]):
-            if np.isnan(MOM.chng_mask[i,j]) == False:
+            if MOM.chng_mask[i,j] != 0:
             #if o_mask_new[i,j] > 0: # For testing all possible ocean cells
                 halo_sum = 0;
                 size = 1;
@@ -614,7 +614,7 @@ def redist_vals(MOM,SIS,FLAGS):
    # 2: Redistribute mass and tracers in and out of change points
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if np.isnan(MOM.chng_mask[i,j]) == False:
+            if MOM.chng_mask[i,j] != 0:
                 redist_tracers(MOM,SIS,i,j,'temp'); redist_tracers(MOM,SIS,i,j,'salt'); 
                 MOM.h_oce, MOM.o_salt, MOM.o_temp = redist_mass(MOM,SIS,i,j)
     if FLAGS.verbose:
@@ -624,7 +624,7 @@ def redist_vals(MOM,SIS,FLAGS):
               '\n Error in energy = '+str(err_T) +\
               '\n Error in salt   = '+str(err_S))
     
-   
+    return
     
     
     

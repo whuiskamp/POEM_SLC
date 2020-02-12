@@ -7,6 +7,7 @@
 
 import numpy as np
 import copy as cp
+from chk_water_col import get_halo
 
 __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2020"
@@ -43,9 +44,13 @@ def chk_cells(MOM,FLAGS):
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if MOM.chng_mask[i,j] == 1 or MOM.chng_mask[i,j] == -1:
-                print('row='+str(i)+'col='+str(j))
-                # For algorithm to work, we must search in both 'directions'.
-                # Try one, then the other.
+                # print('row='+str(i)+'col='+str(j))
+                # First check for individual isolated cells
+                if one_cell_chk(i,j,MOM) == 'True':
+                    continue
+                # If none are found, we need to check if multiple cells have 
+                # become isolated. For algorithm to work, we must search in 
+                # both 'directions'. Try one, then the other.
                 iso_mask = ID_iso_cells(i,j,'right',MOM,FLAGS)
                 if iso_mask is None:
                     iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
@@ -102,13 +107,13 @@ def ID_iso_cells(row,col,turn1,MOM,FLAGS):
             count += 1
             steps_taken += 1
             #print('test 2')
-        elif MOM.o_mask_new[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask):
+        elif MOM.o_mask_new[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask,MOM) == True:
             turn = 'left'
             iso_mask[row_new,col_new] = 1
             count += 1
             steps_taken += 1
             #print('test 3')
-        elif MOM.o_mask_new[row_new,col_new] == 1 and not bounds_chk(row_new,col_new,iso_mask):
+        elif MOM.o_mask_new[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask,MOM) == False:
             turn = 'right'
             steps_taken += 1
             #print('test 4')
@@ -187,7 +192,7 @@ def update_orientation(old_dir,row,col,turn,grd):
     if row == grd[0]:
         row = grd[0]-1
         col = (grd[1]-1)-col
-
+        new_dir = 'S'
      
     return row, col, new_dir
 
@@ -219,8 +224,9 @@ def one_cell_chk(row,col,MOM):
             and MOM.o_mask_new[row,col_p1] == 0:
             MOM.chng_mask[row,col] = -1
             MOM.o_mask_new[row,col] = 0
+            return True
         else: 
-            return
+            return False
     
     # For cell at the polar fold, row_p1 will lie on other side. ie: same row,
     # different col.    
@@ -240,54 +246,120 @@ def one_cell_chk(row,col,MOM):
            MOM.o_mask_new[row,col] = 0
         else: 
             return
-        
-def bounds_chk(row,col,data):
+
+def bounds_chk(row,col,data,MOM):
     # This checks whether an ocean cell is in fact within the same land-bounded
     # region as other ocean cells, as the tracing algorithm can fail when ocean
     # is bounded by land where only vertices of the cells are touching.
+    # The tracing algorithm can also miss corners, so a serparate check is included
+    # whereby we see if an ocean cell touches vertices with an isolated cell
+    # and if it shares a common ocean-cell-neighbour. 
     # Checks/ corrections are included in case prime meridian/ polar fold are 
-    # crossed.
+    # crossed. Requires get_halo function.
     # In:    row - Latitude index
     #        col - Longitude index
     #       data - Mask of cells identified by the ID_iso_cells function. Ocean 
     #              cells are marked as 1, land as 0
+    #       MOM  - Ocean data structure
     # Out: flag  - When true, these ocean cells can said to be connected.
     #              The opposite is true when false.
+    #
+    #  We have a vector of 9 values that map to the halo as follows:
+    #  
+    #  ---------------------------------
+    #  |  rm1_cm1 |  rm1_c   | rm1_cp1 |
+    #  |    0     |    1     |    2    |
+    #  ---------------------------------
+    #  |  r_cm1   |   r_c    |  r_cp1  |
+    #  |    3     |    4     |    5    |
+    #  ---------------------------------
+    #  |  rp1_cm1 |  rp1_c   | rp1_cp1 |
+    #  |    6     |    7     |    8    |
+    #  --------------------------------
+    #
+    # Note that this changes if the halo spans the polar fold!
+    halo = get_halo(MOM,row,col,1,MOM.o_mask_new,False)
+    iso  = data[halo==True]
+    oce  = MOM.o_mask_new[halo==True]
     
-    # For cells not interacting with the polar fold
-    if row < data.shape[0]-1:
-        if col == data.shape[1]-1:
-            col_m1 = col-1; col_p1 = 0
-        elif col == 0:
-            col_p1 = 1; col_m1 = data.shape[1]-1
-        else:
-            col_m1 = col-1; col_p1 = col+1
-        if row == 0:
-            row_m1 = 0; row_p1 = 1
-        else:
-            row_m1 = row - 1; row_p1 = row+1
-            
-        if data[row_p1,col] == 1 or data[row_m1,col] == 1 \
-            or data[row,col_m1] == 1 or data[row,col_p1] == 1:
-            return True
-        else:
-            return False
-    # For cell at the polar fold, row_p1 will lie on other side. ie: same row,
-    # different col.    
-    elif row == data.shape[0]-1:
-        if col == data.shape[1]-1:
-            col_m1 = col-1; col_p1 = 0
-        elif col == 0:
-            col_p1 = 1; col_m1 = data.shape[1]-1
-        else:
-            col_m1 = col-1; col_p1 = col+1
-        row_m1 = row-1
-        
-        if data[row,(data.shape[1]-1)-col] == 1 or data[row_m1,col] == 1 \
-            or data[row,col_m1] == 1 or data[row,col_p1] == 1:
-            return True
-        else:
-            return False  
+    # If halo doesn't cross polar fold...
+    if row != MOM.grid_y-1:
+        rm1_cm1 = 0; rm1_c = 1; rm1_cp1 = 2; r_cm1 = 3; r_cp1 = 5; rp1_cm1 = 6;
+        rp1_c = 7; rp1_cp1 = 8;
+    # If halo DOES cross polar fold, change accordingly
+    elif row == MOM.grid_y-1 and col < MOM.grid_x/2:
+        rm1_cm1 = 0; rm1_c = 1; rm1_cp1 = 2; r_cm1 = 3; r_cp1 = 5; rp1_cm1 = 8;
+        rp1_c = 7; rp1_cp1 = 6;
+    elif row == MOM.grid_y-1 and col > MOM.grid_x/2:
+        rm1_cm1 = 0; rm1_c = 1; rm1_cp1 = 2; r_cm1 = 6; r_cp1 = 8; rp1_cm1 = 5;
+        rp1_c = 4; rp1_cp1 = 3;
+    
+    # If cells on neighbouring faces are defined as isolated, this cell must be 
+    # same isolated region. Return True.
+    if iso[r_cm1] == 1 or iso[rm1_c] == 1 or iso[r_cp1] == 1 or iso[rp1_c] == 1:
+        return True
+    # However, if neighbouring cells on verticies are isolated AND connected to
+    # the target cell by a shared ocean cell, they must also be in the same region
+    elif iso[rm1_cm1] == 1 and (oce[rm1_c] == 1 or oce[r_cm1] == 1):
+        return True
+    elif iso[rm1_cp1] == 1 and (oce[rm1_c] == 1 or oce[r_cp1] == 1):
+        return True
+    elif iso[rp1_cp1] == 1 and (oce[r_cp1] == 1 or oce[rp1_c] == 1):
+        return True
+    elif iso[rp1_cm1] == 1 and (oce[rp1_c] == 1 or oce[r_cm1] == 1):
+        return True
+    else:
+        return False
+                
+    
+    
+#def bounds_chk(row,col,data):
+#    # This checks whether an ocean cell is in fact within the same land-bounded
+#    # region as other ocean cells, as the tracing algorithm can fail when ocean
+#    # is bounded by land where only vertices of the cells are touching.
+#    # Checks/ corrections are included in case prime meridian/ polar fold are 
+#    # crossed.
+#    # In:    row - Latitude index
+#    #        col - Longitude index
+#    #       data - Mask of cells identified by the ID_iso_cells function. Ocean 
+#    #              cells are marked as 1, land as 0
+#    # Out: flag  - When true, these ocean cells can said to be connected.
+#    #              The opposite is true when false.
+#    
+#    # For cells not interacting with the polar fold
+#    if row < data.shape[0]-1:
+#        if col == data.shape[1]-1:
+#            col_m1 = col-1; col_p1 = 0
+#        elif col == 0:
+#            col_p1 = 1; col_m1 = data.shape[1]-1
+#        else:
+#            col_m1 = col-1; col_p1 = col+1
+#        if row == 0:
+#            row_m1 = 0; row_p1 = 1
+#        else:
+#            row_m1 = row - 1; row_p1 = row+1
+#            
+#        if data[row_p1,col] == 1 or data[row_m1,col] == 1 \
+#            or data[row,col_m1] == 1 or data[row,col_p1] == 1:
+#            return True
+#        else:
+#            return False
+#    # For cell at the polar fold, row_p1 will lie on other side. ie: same row,
+#    # different col.    
+#    elif row == data.shape[0]-1:
+#        if col == data.shape[1]-1:
+#            col_m1 = col-1; col_p1 = 0
+#        elif col == 0:
+#            col_p1 = 1; col_m1 = data.shape[1]-1
+#        else:
+#            col_m1 = col-1; col_p1 = col+1
+#        row_m1 = row-1
+#        
+#        if data[row,(data.shape[1]-1)-col] == 1 or data[row_m1,col] == 1 \
+#            or data[row,col_m1] == 1 or data[row,col_p1] == 1:
+#            return True
+#        else:
+#            return False  
     
 def chk_sides(row,col,iso_mask,MOM):
     # This function will check to see if isolated cells have been missed by the 

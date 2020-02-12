@@ -15,31 +15,15 @@ Tool should:
 
 The Fensoscandian Ice sheet will likely be the trickiest. 
 
-Possible to identify isolated cells by doing a running average of ocean cell counts?
-
-Another way is pixel connectivity. Calculate how many cells this ocean cell is connected to, then compare it to the previous time-slice. If it's drastically reduced, then these cells are now isolated. You could improve computation time by simply setting a cutoff value like 30 or something. The trick would be how to calculate this efficiently.
-
-Start from changed cell - that's the seed. From there you have i,j +- 1. Being a coastal cell, many of these 4 options will be immediately rejected (make conditional on o_mask being 1). The problem arises when we hit open ocean/ cells in contact with many others and the calculation increases exponentially.
-
 http://www.imageprocessingplace.com/downloads_V3/root_downloads/tutorials/contour_tracing_Abeer_George_Ghuneim/ray.html
 
 It would work to implement a square contour tracing algorithm with a Jacob's stopping criterion.
 
-How to code this? 
+### NOTE ###
 
-Init at the point that has become land, if o_mask = 1, turn 'left'
-If this turns out to be the wrong way, try again, but make the init turn 'right'
-
-Implement directional variables for past and future movement. 
-
-This has mostly all been coded now in chk_cells.py
-
-Next - include contingency for zonall re-entrance and the tripolar grid. Should be easy:
-if col == o_mask.shape[0]:
-	col = 0
-and ...
-if col == -1:
-	col = o_mask.shape[0]
+chk_cells.py is now mostly complete. One thing to go back and check is if we change a cell from ocean to land in the middle of the ocean, or add to an island.
+This will likely cause the algorithm to identify the entire ocean as 'isolated' cells. Implement an extra check whereby the number of isolated cells is summed
+and if this value is too large, the cell in question is ignored.
 
 
 
