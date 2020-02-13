@@ -16,7 +16,7 @@ __license__ = "GPLv3"
 __version__ = "1.0.0"
 __maintainer__ = "Willem Huiskamp"
 __email__ = "huiskamp@pik-potsdam.de"
-__status__ = "Prototype"
+__status__ = "Alpha"
 
 # For testing, create dummy o_mask array with isolated cells
 # Normal square block
@@ -56,7 +56,18 @@ def chk_cells(MOM,FLAGS):
                     iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
                 # If we have isolated cells, determine what to do with them
                 if iso_mask is not None:
-                    chng_mask_2, o_mask_2 = fix_iso_cells(iso_mask,MOM)
+                    # Firstly, identify any isolated cells the tracing algoritm may have missed
+                    for i in range(MOM.grid_y):
+                        for j in range(MOM.grid_x):
+                            chk_sides(i,j,iso_mask,MOM)
+                    # If we've accidentally filled in the open ocean, just move
+                    # on and pretend like nothing happened
+                    if np.sum(iso_mask) >= MOM.grid_x/2:
+                        continue
+                    # Otherwise, determine what, if anything, to do with our 
+                    # isolated friends
+                    else:
+                        fix_iso_cells(iso_mask,MOM)
     return
 
 def ID_iso_cells(row,col,turn1,MOM,FLAGS):
@@ -261,7 +272,7 @@ def bounds_chk(row,col,data,MOM):
     #       data - Mask of cells identified by the ID_iso_cells function. Ocean 
     #              cells are marked as 1, land as 0
     #       MOM  - Ocean data structure
-    # Out: flag  - When true, these ocean cells can said to be connected.
+    # Out: flag  - When true, these ocean cells can be said to be connected.
     #              The opposite is true when false.
     #
     #  We have a vector of 9 values that map to the halo as follows:
@@ -310,56 +321,6 @@ def bounds_chk(row,col,data,MOM):
         return True
     else:
         return False
-                
-    
-    
-#def bounds_chk(row,col,data):
-#    # This checks whether an ocean cell is in fact within the same land-bounded
-#    # region as other ocean cells, as the tracing algorithm can fail when ocean
-#    # is bounded by land where only vertices of the cells are touching.
-#    # Checks/ corrections are included in case prime meridian/ polar fold are 
-#    # crossed.
-#    # In:    row - Latitude index
-#    #        col - Longitude index
-#    #       data - Mask of cells identified by the ID_iso_cells function. Ocean 
-#    #              cells are marked as 1, land as 0
-#    # Out: flag  - When true, these ocean cells can said to be connected.
-#    #              The opposite is true when false.
-#    
-#    # For cells not interacting with the polar fold
-#    if row < data.shape[0]-1:
-#        if col == data.shape[1]-1:
-#            col_m1 = col-1; col_p1 = 0
-#        elif col == 0:
-#            col_p1 = 1; col_m1 = data.shape[1]-1
-#        else:
-#            col_m1 = col-1; col_p1 = col+1
-#        if row == 0:
-#            row_m1 = 0; row_p1 = 1
-#        else:
-#            row_m1 = row - 1; row_p1 = row+1
-#            
-#        if data[row_p1,col] == 1 or data[row_m1,col] == 1 \
-#            or data[row,col_m1] == 1 or data[row,col_p1] == 1:
-#            return True
-#        else:
-#            return False
-#    # For cell at the polar fold, row_p1 will lie on other side. ie: same row,
-#    # different col.    
-#    elif row == data.shape[0]-1:
-#        if col == data.shape[1]-1:
-#            col_m1 = col-1; col_p1 = 0
-#        elif col == 0:
-#            col_p1 = 1; col_m1 = data.shape[1]-1
-#        else:
-#            col_m1 = col-1; col_p1 = col+1
-#        row_m1 = row-1
-#        
-#        if data[row,(data.shape[1]-1)-col] == 1 or data[row_m1,col] == 1 \
-#            or data[row,col_m1] == 1 or data[row,col_p1] == 1:
-#            return True
-#        else:
-#            return False  
     
 def chk_sides(row,col,iso_mask,MOM):
     # This function will check to see if isolated cells have been missed by the 
@@ -432,37 +393,19 @@ def fix_iso_cells(iso_mask,MOM):
     # Out: chng_mask - Updated change mask.
     #         o_mask - Updated ocean mask
     
-    # Firstly, identify any isolated cells the tracing algoritm may have missed
-    for i in range(MOM.grid_y):
-        for j in range(MOM.grid_x):
-            chk_sides(i,j,iso_mask,MOM)
     # If cells are less than 5m in depth, fill them in
     tmp = MOM.h_sum[iso_mask==1] 
     if np.mean(tmp) < 5:
-        MOM.chng_mask
+        MOM.chng_mask[iso_mask==1] = -1
     # If the group consists of 3 or fewer cells, fill it in
     size = np.sum(iso_mask)
     if size <= 3:
         MOM.chng_mask[iso_mask==1] = -1
     
-    # If group consists of 4 or more cells and is deeper than 5m, leave it be
-   
-    
-    
-    
-    
-    
-    
+    # If group consists of 4 or more cells and is deeper than 5m, we leave it be
+      
     return
-#grd = o_mask.shape      
 
-#test = ID_iso_cells(17,10,'right',MOM)        
-#if test is None:     
-#    test = ID_iso_cells(17,10,o_mask,'left',10,grd)
-#
-#test = ID_iso_cells(18,9,o_mask,'right',40,grd)        
-#if test is None:     
-#    test = ID_iso_cells(18,9,o_mask,'left',40,grd)
      
         
         
