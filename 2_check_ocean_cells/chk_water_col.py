@@ -246,9 +246,8 @@ def check_water_col(MOM,ICE,FLAGS):
             if ICE.I_mask[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.depth_new[i,j] >= 5:
                 eta_mean = halo_eta(MOM.eta,i,j);
                 if eta_mean + MOM.depth_new[i,j] > 2: # optionally add: and coast[i,j] == 1: 
-                    # Note the ocean mask is NOT changed. See documentation for why.
                     MOM.chng_mask[i,j]  = 1;
-     
+                    MOM.o_mask_new[i,j] = 1;
     # Finally, we need to make sure our new land-sea mask has not created isolated
     # cells or inland seas, if so, updated o_mask and chng_mask where required
     

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # This script checks a given ocean mask for non-advective cells or cells that 
 # have been isolated from the ocean. When found, appropriate action is taken to
 # either make them land, or leave them alone (so long as they are stable).
@@ -7,16 +5,18 @@
 
 import numpy as np
 import copy as cp
+#import sys
+#sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
 from chk_water_col import get_halo
 
-__author__ = "Willem Huiskamp"
-__copyright__ = "Copyright 2020"
-__credits__ = ["Willem Huiskamp", ""]
-__license__ = "GPLv3"
-__version__ = "1.0.0"
+__author__     = "Willem Huiskamp"
+__copyright__  = "Copyright 2020"
+__credits__    = ["Willem Huiskamp", ""]
+__license__    = "GPLv3"
+__version__    = "1.0.0"
 __maintainer__ = "Willem Huiskamp"
-__email__ = "huiskamp@pik-potsdam.de"
-__status__ = "Alpha"
+__email__      = "huiskamp@pik-potsdam.de"
+__status__     = "Alpha"
 
 # For testing, create dummy o_mask array with isolated cells
 # Normal square block
@@ -29,46 +29,6 @@ __status__ = "Alpha"
 #o_mask[0::,0] = 0; o_mask[0::,19] = 0; o_mask[0,0::] = 0; o_mask[19,0::] = 0;
 #o_mask[18,9] = 0; o_mask[17,10:16] = 0; o_mask[16,16] = 0; o_mask[16,18] = 0;
 #o_mask[15,17] = 0;
-
-def chk_cells(MOM,FLAGS):
-    # This function checks the ocean mask for cells or groups of cells isolated
-    # from the ocean. For the tracing algorithm to function, we must first 
-    # eliminate individual isolated cells.
-    # In:  o_mask    - Ocean mask (ocean = 1, land = 0)
-    #      chng_mask - A mask indicating which cells are changing from the last 
-    #                  simulation to the next (-1 = new land, 1 = new ocean)
-    #      MOM       - Data structure containing all ocean restart data
-    # Out: o_mask    - Updated ocean mask
-    #      chng_mask - Updated change mask
-        
-    for i in range(MOM.grid_y):
-        for j in range(MOM.grid_x):
-            if MOM.chng_mask[i,j] == 1 or MOM.chng_mask[i,j] == -1:
-                # print('row='+str(i)+'col='+str(j))
-                # First check for individual isolated cells
-                if one_cell_chk(i,j,MOM) == 'True':
-                    continue
-                # If none are found, we need to check if multiple cells have 
-                # become isolated. For algorithm to work, we must search in 
-                # both 'directions'. Try one, then the other.
-                iso_mask = ID_iso_cells(i,j,'right',MOM,FLAGS)
-                if iso_mask is None:
-                    iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
-                # If we have isolated cells, determine what to do with them
-                if iso_mask is not None:
-                    # Firstly, identify any isolated cells the tracing algoritm may have missed
-                    for i in range(MOM.grid_y):
-                        for j in range(MOM.grid_x):
-                            chk_sides(i,j,iso_mask,MOM)
-                    # If we've accidentally filled in the open ocean, just move
-                    # on and pretend like nothing happened
-                    if np.sum(iso_mask) >= MOM.grid_x/2:
-                        continue
-                    # Otherwise, determine what, if anything, to do with our 
-                    # isolated friends
-                    else:
-                        fix_iso_cells(iso_mask,MOM)
-    return
 
 def ID_iso_cells(row,col,turn1,MOM,FLAGS):
     # This function consists of a square contour-tracing algorithm 
@@ -406,7 +366,46 @@ def fix_iso_cells(iso_mask,MOM):
       
     return
 
-     
+################################# Main Code ################################### 
+def chk_cells(MOM,FLAGS):
+    # This function checks the ocean mask for cells or groups of cells isolated
+    # from the ocean. For the tracing algorithm to function, we must first 
+    # eliminate individual isolated cells.
+    # In:  o_mask    - Ocean mask (ocean = 1, land = 0)
+    #      chng_mask - A mask indicating which cells are changing from the last 
+    #                  simulation to the next (-1 = new land, 1 = new ocean)
+    #      MOM       - Data structure containing all ocean restart data
+    # Out: o_mask    - Updated ocean mask
+    #      chng_mask - Updated change mask
+        
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            if MOM.chng_mask[i,j] == 1 or MOM.chng_mask[i,j] == -1:
+                # print('row='+str(i)+'col='+str(j))
+                # First check for individual isolated cells
+                if one_cell_chk(i,j,MOM) == 'True':
+                    continue
+                # If none are found, we need to check if multiple cells have 
+                # become isolated. For algorithm to work, we must search in 
+                # both 'directions'. Try one, then the other.
+                iso_mask = ID_iso_cells(i,j,'right',MOM,FLAGS)
+                if iso_mask is None:
+                    iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
+                # If we have isolated cells, determine what to do with them
+                if iso_mask is not None:
+                    # Firstly, identify any isolated cells the tracing algoritm may have missed
+                    for i in range(MOM.grid_y):
+                        for j in range(MOM.grid_x):
+                            chk_sides(i,j,iso_mask,MOM)
+                    # If we've accidentally filled in the open ocean, just move
+                    # on and pretend like nothing happened
+                    if np.sum(iso_mask) >= MOM.grid_x/2:
+                        continue
+                    # Otherwise, determine what, if anything, to do with our 
+                    # isolated friends
+                    else:
+                        fix_iso_cells(iso_mask,MOM)
+    return    
         
         
         

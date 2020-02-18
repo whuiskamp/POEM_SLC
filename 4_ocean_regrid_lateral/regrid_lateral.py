@@ -110,9 +110,10 @@ def cell_weights(row,col,size,MOM):
     #      MOM       - Ocean data structure
     # Out: c_weight  - Masked array containing weights (summing to 1)
     #      halo      - The halo for which weights were calculated
-    c_weight = np.full([MOM.grid_y, MOM.grid_x],np.nan)
+    c_weight = np.full([MOM.grid_y, MOM.grid_x],np.nan) # For some stupid reason, this function only works if this is nan
     halo_sum,halo,dat_halo = halo_calc(row,col,MOM.cell_area,MOM,size,'sum');
     c_weight[halo] = dat_halo[halo]/halo_sum
+    c_weight[np.isnan(c_weight)] = 0
     return c_weight, halo
 
 def h2vgrid(delh,h):
@@ -365,7 +366,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
         
             # 1.3 Calculate how much energy each halo cell recieves 
             delta_heat      = c_wgts*tot_heat          # energy going to each halo cell
-            o_temp          = heat2cell(delta_heat,MOM.o_temp,MOM)
+            o_temp          = heat2cell(delta_heat,MOM)
             new_tracer      = o_temp
         elif tracer == 'salt':
             # 1.4 Sum salinity in sea ice (snow has no salt content)
@@ -417,22 +418,24 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
                 
     return new_tracer
     
-def heat2cell(delta_E,T,MOM):
+def heat2cell(delta_E,MOM):
     # This function adds or removes energy to/from a grid cell and updates the 
     # temperature field. The approach used is designed to spread out the change
     # in T equally throughout the water column (so, proportional to h) to try and
     # maintain the vertical temperature structure of the grid cell.
     # In:  delta_E   - The energy being added/removed from a series of halo cells 
-    #      T         - The temperature field to be altered
+    #      o_temp    - The temperature field to be altered
     #      cell_area - Tracer cell area
     #      h_oce     - Ocean layer thickness
     # Out: T_new     - Updated temperature field
-    wght = np.full(T.shape,0)
-    mass = np.full(T.shape,0)
+    wght = np.full(MOM.o_temp.shape,np.nan)
+    mass = np.full(MOM.o_temp.shape,np.nan)
+    T_new = np.full(MOM.o_temp.shape,np.nan)
+    h_oce = MOM.h_oce; h_oce[:,MOM.o_mask==0] = np.nan
     for i in range(MOM.grid_z):
-        mass[i,:,:] = MOM.h_oce[i,:,:] * MOM.cell_area
-        wght[i,:,:] = MOM.h_oce[i,:,:]/np.sum(MOM.h_oce,0)
-        T_new = T[i,:,:] + delta_E*wght[i,:,:]/(mass[i,:,:]*MOM.C_P)  
+        mass[i,:,:] = h_oce[i,:,:] * MOM.cell_area
+        wght[i,:,:] = h_oce[i,:,:]/np.sum(h_oce,0)
+        T_new[i,:,:] = MOM.o_temp[i,:,:] + delta_E*wght[i,:,:]/(mass[i,:,:]*MOM.C_P)  
         
     return T_new
 
@@ -584,7 +587,7 @@ def redist_vals(MOM,SIS,FLAGS):
     # Variable pre-processing
 #    h_sum        = np.sum(MOM.h_oce,0);                           # Depth of water column (NOT depth of bathymetry)
     tmp          = cp.deepcopy(MOM.h_oce);                        # Dummy variable
-    tmp          = np.where(tmp>.01, tmp, np.nan);                # While all layers always exist, we only want them if they have 
+    tmp          = np.where(tmp>0.01, tmp, np.nan);               # While all layers always exist, we only want them if they have 
     MOM.h_lvls   = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers, defined has having h > 0.001)
     MOM.wght     = np.full(MOM.h_oce.shape,np.nan)                # Cell weights for mass redistribution
     for i in range(MOM.h_lvls.shape[0]):                          # we add mass to a layer proportional to its thickness

@@ -4,6 +4,10 @@
 from netCDF4 import Dataset as CDF
 import numpy as np
 import copy as cp
+import sys
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
 from regrid_lateral import get_param
 from chk_water_col import calc_coast
 
@@ -163,7 +167,7 @@ def init_data_structs(work_dir,test,verbose):
     h_sno_old  = cp.deepcopy(h_sno);  ice_frac_old = cp.deepcopy(ice_frac);
     
     # Variable pre-processing
-    h_oce[:,o_mask==0]  = np.nan                                         # Change land to NaN
+    h_oce[:,o_mask==0]  = 0                                              # Change land to 0
     ave_eta[o_mask==0]  = np.nan                                         # Change land to NaN
     eta[o_mask==0]      = np.nan                                         # Change land to NaN
     h_sum               = np.sum(h_oce,0);                               # Depth of water column (NOT depth of bathymetry)
