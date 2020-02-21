@@ -3,3 +3,8 @@ The current structure of the code handles bathymetry/topography in the following
 1) First is the default 'control' bathymetry used for the initial conditions       - topog_ctrl
 2) Second is the bathymetry used in the last integration of MOM6 before coupling   - topog_old
 3) Third is the new bathy that has been updated via fields from the VILMA model    - topog_new
+
+To calculate the bathymetry anomalies requires an understanding of how VILMA and MOM exchange information
+It is assumed that the long-term Dela h of the ocean is forced (in ocean/sea ice only mode) by a mass flux equivalent to what PISM gains over a fast coupling time-step.
+
+In this way, mass changes in the ocean are directly equilvant to ice loading changes, which VILMA uses to calculate its relative sea level (RSL). Given that the Delta RSL = Delta h and h(bedrock), and that Delta h should be directly equivalent to that in MOM, we can read in this Delta RSL variable from VILMA, subtract the sum h of MOM (which, in theory is the same as in VILMA) and be left with the change in bathymetry (h(bedrock)) as calculated by VILMA. This residual can then be applied to the MOM model bathymetry fields.

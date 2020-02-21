@@ -33,19 +33,19 @@
 #import subprocess as sp
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
 #import os
 import numpy as np
 import copy as cp
 #import time
 import math
-import re
 #import matplotlib.pyplot as plt
-#import argparse
 from netCDF4 import Dataset as CDF
 # Custom functions
-from chk_water_col import get_halo
+from shared_funcs import get_halo
+from shared_funcs import halo_eta
 from SIS2_funcs import sum_ice_enth
+from SIS2_funcs import sum_ice_sal
 
 __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2020"
@@ -57,24 +57,6 @@ __email__ = "huiskamp@pik-potsdam.de"
 __status__ = "Alpha"
 
 ############################## Define functions ###############################
-def get_param(data,name=''):
-    # This function returns values of OM4 model parameters of choice
-    # The search through the parameter file is done using the regex 'find',
-    # which searches for the string 'name' and returns the value associated 
-    # with it.
-    # In:  data - the parameter file (from either MOM6 or SIS2)
-    #      name - string naming the variable sought after
-    # Out: val  - The value of paramter 'name' as a float
-    
-    find = re.compile(r"^("+str(name)+")\s\=\s(\S*)")
-    
-    for line in data:
-        out = find.match(line)
-        if out:       
-            _, val = out.groups()
-    out = float(val)
-    return out
-
 def halo_calc(row,col,data,MOM,size,operation):
     # This function calculates the sum or mean of some variable in halo cells
     # Note: this should NOT be used for tracers with the 'sum' flag, 
@@ -116,7 +98,7 @@ def cell_weights(row,col,size,MOM):
     c_weight[np.isnan(c_weight)] = 0
     return c_weight, halo
 
-def h2vgrid(delh,h):
+def h2vgrid(delh,h,MOM):
     # This function distributes mass changes evenly over k levels in a single 
     # ocean cell. When the change in SSH is greater than 1m, mass is added to all 
     # h layers proportional to their existing thickness. It assumes that for a 
@@ -134,13 +116,13 @@ def h2vgrid(delh,h):
                 if 0 < delh[i,j] <= 1:              # Adding mass
                     newh[i,j] = h[0,i,j]+delh[i,j]
                 elif delh[i,j] > 1:                 # Adding lots of mass
-                    for k in h_lvls-1:
-                        newh[k,i,j] = h[k,i,j]+(delh[i,j] * wght[k,i,j])
+                    for k in MOM.h_lvls-1:
+                        newh[k,i,j] = h[k,i,j]+(delh[i,j] * MOM.wght[k,i,j])
                 elif -1 < delh[i,j] < 0:            # Removing mass
                     newh[i,j] = h[0,i,j]+delh[i,j]
                 elif delh[i,j] < -1:                # Removing lots of mass
-                    for k in h_lvls-1:
-                        newh[k,i,j] = h[k,i,j]+(delh[i,j] * wght[k,i,j])
+                    for k in MOM.h_lvls-1:
+                        newh[k,i,j] = h[k,i,j]+(delh[i,j] * MOM.wght[k,i,j])
     return newh
 
 def tracer_correct(h,newh,MOM):
@@ -397,6 +379,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
         # Which tracer?
         if tracer == 'temp':
             # 2.5 Create new temperature profile based on surrounding cells
+            T = np.full(MOM.grid_z,0)
             for i in range(MOM.grid_z):
                 T[i],_,_ = halo_calc(row,col,MOM.o_temp[i,:,:],MOM,1,'mean')
             # 2.6 Calculate total energy for new cell
@@ -407,6 +390,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
             new_tracer      = o_temp
         elif tracer == 'salt':
             # 2.8 Create new salinity profile based on surrounding cells
+            S = np.full(MOM.grid_z,0)
             for i in range(MOM.grid_z):
                 S[i],_,_ = halo_calc(row,col,MOM.o_salt[i,:,:],MOM,1,'mean')
             # 2.9 Calculate total salt for new cell
@@ -459,7 +443,7 @@ def tracer2cell(delta_t,tracer,MOM,var=''):
             new = tracer[i,:,:] + ((delta_t*1000)*wght)/mass[i,:,:]
     return new
 
-def chk_ssh(h_sum): # Unfinished- double check everything
+def chk_ssh(h_sum,MOM): # Unfinished- double check everything
     # This function checks for sea surface height gradients after redistribution
     # of mass and tracers between ocean cells. For the moment, if neighbouring cells 
     # have a SSH difference of 1m or more, they will get flagged.
@@ -469,14 +453,14 @@ def chk_ssh(h_sum): # Unfinished- double check everything
     lrg_grd = np.full(h_sum.shape)
     for i in range(h_sum.shape[0]):
         for j in range(h_sum.shape[1]-1): # Cells on other side of zonal split handled later
-            if bathy[i,j] != 0 and bathy[i,j+1] != 0:
-                diff_x = abs((h_sum[i,j] - bathy[i,j]) - (h_sum[i,j+1] - bathy[i,j+1]))
+            if MOM.depth_new[i,j] != 0 and MOM.depth_new[i,j+1] != 0:
+                diff_x = abs((h_sum[i,j] - MOM.depth_new[i,j]) - (h_sum[i,j+1] - MOM.depth_new[i,j+1]))
                 if diff_x >= 1:
                     lrg_grd[i,j] = 1
     for i in range(h_sum.shape[0]-1):
         for j in range(h_sum.shape[1]):
-            if bathy[i,j] != 0 and bathy[i+1,j] != 0:
-                diff_y = abs((h_sum[i,j] - bathy[i,j]) - (h_sum[i+1,j] - bathy[i+1,j]))
+            if MOM.depth_new[i,j] != 0 and MOM.depth_new[i+1,j] != 0:
+                diff_y = abs((h_sum[i,j] - MOM.depth_new[i,j]) - (h_sum[i+1,j] - MOM.depth_new[i+1,j]))
                 if diff_y >= 1:
                     lrg_grd[i,j] = 1
     return

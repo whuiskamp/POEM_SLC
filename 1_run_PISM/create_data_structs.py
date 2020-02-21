@@ -8,8 +8,8 @@ import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
-from regrid_lateral import get_param
-from chk_water_col import calc_coast
+from shared_funcs import get_param
+from shared_funcs import calc_coast
 
 __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2020"

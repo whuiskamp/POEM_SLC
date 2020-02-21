@@ -5,9 +5,9 @@
 
 import numpy as np
 import copy as cp
-#import sys
-#sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
-from chk_water_col import get_halo
+import sys
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
+from shared_funcs import get_halo
 
 __author__     = "Willem Huiskamp"
 __copyright__  = "Copyright 2020"
@@ -367,7 +367,7 @@ def fix_iso_cells(iso_mask,MOM):
     return
 
 ################################# Main Code ################################### 
-def chk_cells(MOM,FLAGS):
+def check_cells(MOM,FLAGS):
     # This function checks the ocean mask for cells or groups of cells isolated
     # from the ocean. For the tracing algorithm to function, we must first 
     # eliminate individual isolated cells.
