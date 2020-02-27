@@ -1,5 +1,7 @@
 # This script creates classes to handle the restart variables
 # from the climate model output
+# Note that for Boussinesq numerics, H_to_m is used instead of H_to_kg_m2.
+# In any event, this should not matter either way because they default to 1
 
 from netCDF4 import Dataset as CDF
 import numpy as np
@@ -50,6 +52,7 @@ def init_data_structs(work_dir,test,verbose):
 #        PISM_data = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
         Omask     = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
         grid      = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
+        vgrid     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
         params_MOM    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM_parameter_doc.all','r').readlines()
         params_SIS    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/SIS_parameter_doc.all','r').readlines()
     else:
@@ -61,8 +64,9 @@ def init_data_structs(work_dir,test,verbose):
         params_SIS    = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/SIS_parameter_doc.all','r').readlines()
         #PISM_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
         #VILMA_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
-        Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
-    
+        #Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
+        #grid      = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
+        #vgrid     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
     # Extract/ define variables
     # Ocean
     h_oce        = MOM6_rest.variables['h'][0,:,:,:].data                # Ocean layer thickness (m)
@@ -136,6 +140,7 @@ def init_data_structs(work_dir,test,verbose):
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
     o_mask_new   = np.rint(Omask.variables['mask'][:,:].data);           # Updated ocean mask (boolean)
     C_P          = get_param(params_MOM,'C_P');                          # The heat capacity of seawater in MOM6 (J kg-1 K-1)
+    H_to_m       = get_param(params_MOM,'H_TO_M');
     H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                   # grid cell to mass conversion factor (1 by default)
     
     # Geography
@@ -151,6 +156,7 @@ def init_data_structs(work_dir,test,verbose):
     grid_z     = int(get_param(params_MOM,'NK'));                        # Number of vertical levels in ocean
     cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
     nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
+    grid_dz    = vgrid.variables['dz'][:];                               # Default vertical grid spacing (m)
     
     if test:
         topo_chng = np.full(o_mask.shape, 0);
@@ -226,10 +232,11 @@ def init_data_structs(work_dir,test,verbose):
     MOM.grid_x         = grid_x
     MOM.grid_y         = grid_y
     MOM.grid_z         = grid_z
+    MOM.grid_dz        = grid_dz
     MOM.cell_area      = cell_area
     MOM.C_P            = C_P
-    MOM.H_to_kg_m2     = H_to_kg_m2
-    
+    MOM.H_to_m         = H_to_m
+        
     # Initialise sea ice data structure
     SIS = SIS_vars()
     SIS.ice_frac       = ice_frac
@@ -262,6 +269,7 @@ def init_data_structs(work_dir,test,verbose):
     SIS.rough_moist    = rough_moist
     SIS.rough_heat     = rough_heat
     SIS.nk_ice         = nk_ice
+    SIS.H_to_kg_m2     = H_to_kg_m2
     
     # Initialise ice sheet data structure
     ICE = PISM_vars()

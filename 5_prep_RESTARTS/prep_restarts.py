@@ -15,7 +15,7 @@ __maintainer__ = "Willem Huiskamp"
 __email__ = "huiskamp@pik-potsdam.de"
 __status__ = "Prototype"
 
-def write_rests(MOM,SIS,FLAGS):
+def write_rest(MOM,SIS,FLAGS):
 # Load new restart files
 
 # Change all ocean/ ice fields that need to be changed

@@ -197,7 +197,6 @@ def check_neighbour(data,row,col,flag):
         
     return criteria
 
-
 def get_param(data,name=''):
     # This function returns values of OM4 model parameters of choice
     # The search through the parameter file is done using the regex 'find',

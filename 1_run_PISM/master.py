@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # Implement changes to land sea mask and redistribute relevant tracers
     else:
         # There are cells that need altering, so run applicable scripts.
-        redist_vals
+        redist_vals(MOM,SIS,OLD,FLAGS)
 
 
 
