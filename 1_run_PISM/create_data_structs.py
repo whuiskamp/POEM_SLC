@@ -144,9 +144,9 @@ def init_data_structs(work_dir,test,verbose):
     H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                   # grid cell to mass conversion factor (1 by default)
     
     # Geography
-    depth_new  = new_bathy.variables['depth'][:,:]; new_bathy.close()    # Ocean depth of current simulation (m)
-    depth_old  = old_bathy.variables['depth'][:,:]; old_bathy.close()    # Ocean depth of previous simulation (m)
-    depth_ctrl = ctrl_bathy.variables['depth'][:,:]; ctrl_bathy.close()  # The control, pre-industrial bathymetry (m)
+    depth_new  = new_bathy.variables['depth'][:,:];                      # Ocean depth of current simulation (m)
+    depth_old  = old_bathy.variables['depth'][:,:];                      # Ocean depth of previous simulation (m)
+    depth_ctrl = ctrl_bathy.variables['depth'][:,:];                     # The control, pre-industrial bathymetry (m)
     
     # Grid variables
     lat        = grid.variables['geolat'][:,:];                          # Latitude of tracer cell-centres
@@ -166,11 +166,6 @@ def init_data_structs(work_dir,test,verbose):
 #        ice_frac[ice_frac==0] = 2; ice_frac[ice_frac<2] = 0 
 #    else:
 #        ice_frac  = PISM_data.variables['ice_frac'][:,:] 
-    # Create copies of original fields for conservation checks 
-    o_temp_old = cp.deepcopy(o_temp); e_ice_old    = cp.deepcopy(e_ice);
-    e_sno_old  = cp.deepcopy(e_sno);  h_oce_old    = cp.deepcopy(h_oce);
-    h_ice_old  = cp.deepcopy(h_ice);  o_salt_old   = cp.deepcopy(o_salt);
-    h_sno_old  = cp.deepcopy(h_sno);  ice_frac_old = cp.deepcopy(ice_frac);
     
     # Variable pre-processing
     h_oce[:,o_mask==0]  = 0                                              # Change land to 0
@@ -178,8 +173,18 @@ def init_data_structs(work_dir,test,verbose):
     eta[o_mask==0]      = np.nan                                         # Change land to NaN
     h_sum               = np.sum(h_oce,0);                               # Depth of water column (NOT depth of bathymetry)
     
+    # Create copies of original fields for conservation checks 
+    o_temp_old = cp.deepcopy(o_temp); e_ice_old    = cp.deepcopy(e_ice);
+    e_sno_old  = cp.deepcopy(e_sno);  h_oce_old    = cp.deepcopy(h_oce);
+    h_ice_old  = cp.deepcopy(h_ice);  o_salt_old   = cp.deepcopy(o_salt);
+    h_sno_old  = cp.deepcopy(h_sno);  ice_frac_old = cp.deepcopy(ice_frac);
+        
     # Identify coastal cells
     coast = calc_coast(o_mask)
+    
+    # Close all input files
+    new_bathy.close(); old_bathy.close(); ctrl_bathy.close(); MOM6_rest.close()
+    SIS2_rest.close(); Omask.close(); grid.close(); vgrid.close()
     
 ###############################################################################    
     # Initialise options class

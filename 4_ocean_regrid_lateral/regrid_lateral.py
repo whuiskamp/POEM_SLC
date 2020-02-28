@@ -192,9 +192,9 @@ def redist_mass(MOM,SIS,row,col):
         
         # 4. Correct tracer concentrations for change in h thickness
         o_temp, o_salt = tracer_correct(MOM.h_oce,newh,MOM) # This alters exising tracer fields and returns
-                                                    # values corrected for change in mass
+                                                     # values corrected for change in mass
         # 5. Remove ocean cell from h field
-        newh[:,row,col] = 0.001;                    # Remove mass from cell and set layers to be land
+        newh[:,row,col] = 0                          # Remove mass from cell and set layers to be land
         
     elif MOM.chng_mask(row,col) == 1: # Filling a cell (land -> ocean)
         # 2. Check surrounding SSH
@@ -421,7 +421,7 @@ def heat2cell(delta_E,MOM):
     wght = np.full(MOM.o_temp.shape,np.nan)
     mass = np.full(MOM.o_temp.shape,np.nan)
     T_new = np.full(MOM.o_temp.shape,np.nan)
-    h_oce = MOM.h_oce; h_oce[:,MOM.o_mask==0] = np.nan
+    h_oce = cp.deepcopy(MOM.h_oce); h_oce[:,MOM.o_mask==0] = np.nan
     for i in range(MOM.grid_z):
         mass[i,:,:] = h_oce[i,:,:] * MOM.cell_area
         wght[i,:,:] = h_oce[i,:,:]/np.sum(h_oce,0)
@@ -500,54 +500,50 @@ def chk_conserv(OLD,SIS,MOM,data=""):
     total_old = 0; total_new = 0
     err_tol = 1e-14 # Error tolerance for conservation
     if data == 'temp':
-        for row in range(MOM.grid_y):
-            for col in range(MOM.grid_x):    
-                total_old += sum_ocean_enth(row,col,OLD.o_temp[:,row,col],
-                            OLD.h_oce[:,row,col],MOM) \
-                            + sum_ice_enth(row,col,OLD.e_ice[:,:,row,col], \
-                            OLD.e_sno[:,:,row,col],OLD.h_ice[:,row,col], \
-                            OLD.h_sno[:,row,col],OLD.ice_frac[:,row,col])
-                total_new += sum_ocean_enth(row,col,MOM.o_temp[:,row,col],
-                            MOM.h_oce[:,row,col],MOM) \
-                            + sum_ice_enth(row,col,SIS.e_ice[:,:,row,col], \
-                            SIS.e_sno[:,:,row,col],SIS.h_ice[:,row,col], \
-                            SIS.h_sno[:,row,col],SIS.ice_frac[:,row,col])
-    elif data == 'salt':
-        tot_ice_old = 0
-        tot_ice_new = 0
+        # Calculate total ocean enthalpy
+        total_old += sum_ocean_enth(None,None,OLD.o_temp,OLD.h_oce,MOM,False)
+        total_new += sum_ocean_enth(None,None,MOM.o_temp,MOM.h_oce,MOM,False)
+        # Calculate total ice enthalpy
         for row in range(MOM.grid_y):
             for col in range(MOM.grid_x):
-                tot_ice_old += sum_ice_sal(row,col,OLD.ice_frac, \
+                total_old += sum_ice_enth(row,col,OLD.e_ice[:,:,row,col], \
+                                   OLD.e_sno[:,:,row,col],OLD.h_ice[:,row,col], \
+                                   OLD.h_sno[:,row,col],OLD.ice_frac[:,row,col])
+                total_new += sum_ice_enth(row,col,SIS.e_ice[:,:,row,col], \
+                                   SIS.e_sno[:,:,row,col],SIS.h_ice[:,row,col], \
+                                   SIS.h_sno[:,row,col],SIS.ice_frac[:,row,col])
+    elif data == 'salt':
+        total_old = sum_ocean_salt(None,None,OLD.o_salt,OLD.h_oce,MOM,False)
+        total_new = sum_ocean_salt(None,None,MOM.o_salt,MOM.h_oce,MOM,False)
+        for row in range(MOM.grid_y):
+            for col in range(MOM.grid_x):
+                total_old += sum_ice_sal(row,col,OLD.ice_frac, \
                                            MOM.cell_area,OLD.h_ice,SIS.s_ice, \
                                            SIS.H_to_kg_m2,SIS.nk_ice)
-                tot_ice_new += sum_ice_sal(row,col,SIS.ice_frac, \
+                total_new += sum_ice_sal(row,col,SIS.ice_frac, \
                                            MOM.cell_area,SIS.h_ice,SIS.s_ice, \
                                            SIS.H_to_kg_m2,SIS.nk_ice)
-        total_old = sum_ocean_salt(None,None,OLD.o_salt,OLD.h_oce,MOM,"False") + \
-                    tot_ice_old
-        total_new = sum_ocean_salt(None,None,MOM.o_salt,MOM.h_oce,MOM,"False") + \
-                    tot_ice_new
         
     elif data == 'mass':
         ice_mass_old = 0; sno_mass_old = 0; ice_mass_new = 0; sno_mass_new = 0
         # Ice model
         for i in range(SIS.h_ice.shape[0]):
-            ice_mass_old += OLD.h_ice[i,row,col]*MOM.cell_area[row,col]*OLD.ice_frac[i,row,col] 
-            sno_mass_old += OLD.h_sno[i,row,col]*MOM.cell_area[row,col]*OLD.ice_frac[i,row,col]
-            ice_mass_new += SIS.h_ice[i,row,col]*MOM.cell_area[row,col]*SIS.ice_frac[i,row,col] 
-            sno_mass_new += SIS.h_sno[i,row,col]*MOM.cell_area[row,col]*SIS.ice_frac[i,row,col]
+            ice_mass_old += np.sum(OLD.h_ice[i,:,:]*MOM.cell_area[:,:]*OLD.ice_frac[i,:,:]) 
+            sno_mass_old += np.sum(OLD.h_sno[i,:,:]*MOM.cell_area[:,:]*OLD.ice_frac[i,:,:])
+            ice_mass_new += np.sum(SIS.h_ice[i,:,:]*MOM.cell_area[:,:]*SIS.ice_frac[i,:,:])
+            sno_mass_new += np.sum(SIS.h_sno[i,:,:]*MOM.cell_area[:,:]*SIS.ice_frac[i,:,:])
         # Ocean model
-        sea_mass_old = np.sum(OLD.h_oce,0)*MOM.cell_area
-        sea_mass_new = np.sum(MOM.h_oce,0)*MOM.cell_area
+        sea_mass_old = np.sum(np.sum(OLD.h_oce,0)*MOM.cell_area)
+        sea_mass_new = np.nansum(np.sum(MOM.h_oce,0)*MOM.cell_area)
         # Total
         total_old    = ice_mass_old + sno_mass_old + sea_mass_old
         total_new    = ice_mass_new + sno_mass_new + sea_mass_new
         
     if math.isclose(total_old,total_new,abs_tol=err_tol): # Past 1e-14, choice of summing algorith begins to impact
-        print('Tracer '+data+' is conserving within a tolerance of '+str(err_tol))
+        print(data+' is conserving within a tolerance of '+str(err_tol))
     else:
         tot_diff = total_old - total_new
-        raise ValueError(str('Tracer '+data+' is not conserving. Total_old - Total_new = '+str(tot_diff)))
+        raise ValueError(str(data+' is not conserving. Total_old - Total_new = '+str(tot_diff)))
     return
 ################################# Main Code ###################################
     
