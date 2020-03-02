@@ -112,17 +112,17 @@ def h2vgrid(delh,h,MOM):
     
     for i in range(delh.shape[0]):
         for j in range(delh.shape[1]):
-            if ~np.isnan(delh.data[i,j]):
+            if delh.data[i,j] != 0:
                 if 0 < delh[i,j] <= 1:              # Adding mass
-                    newh[0,i,j] = h[0,i,j]+delh[i,j]
+                    newh[0,i,j] = np.sum([h[0,i,j],delh[i,j]])
                 elif delh[i,j] > 1:                 # Adding lots of mass
                     for k in MOM.h_lvls-1:
-                        newh[k,i,j] = h[k,i,j]+(delh[i,j] * MOM.wght[k,i,j])
+                        newh[k,i,j] = np.sum([h[k,i,j],np.multiply(delh[i,j],MOM.wght[k,i,j])])
                 elif -1 < delh[i,j] < 0:            # Removing mass
-                    newh[0,i,j] = h[0,i,j]+delh[i,j]
+                    newh[0,i,j] = np.sum([h[0,i,j],delh[i,j]])
                 elif delh[i,j] < -1:                # Removing lots of mass
                     for k in MOM.h_lvls-1:
-                        newh[k,i,j] = h[k,i,j]+(delh[i,j] * MOM.wght[k,i,j])
+                        newh[k,i,j] = np.sum([h[k,i,j],np.multiply(delh[i,j],MOM.wght[k,i,j])])
     if np.any(np.less(newh,0)): # check if we've accidentally created cells of -tive thickness
         raise ValueError(str('Oops! You have negative layer thicknesses'))
     return newh
@@ -171,7 +171,7 @@ def redist_mass(MOM,SIS,row,col):
     
     size         = MOM.h_size_mask[row,col].astype(int) # Def. halo radius
     c_wgts, halo = cell_weights(row,col,size,MOM)       # Get weights for re-distribution
-    ice_mass = 0; sno_mass = 0                          # Initialise remaining vars
+    ice_mass = 0.0; sno_mass = 0.0                      # Initialise remaining vars
     # 1. Are we filling or emptying a cell?
     if MOM.chng_mask[row,col] == -1: # Emptying a cell (ocean -> Land)
         # 2. Calculate the mass to remove from the cell
@@ -181,14 +181,14 @@ def redist_mass(MOM,SIS,row,col):
             sno_mass = sno_mass + SIS.h_sno[i,row,col]*MOM.cell_area[row,col]*SIS.ice_frac[i,row,col];
         # Ocean model
         h_cell          = MOM.h_oce[:,row,col];
-        h_sum           = h_cell.sum(0);            # All h levels exist at every point, just very small
-        sea_mass        = h_sum*MOM.cell_area[row,col];
+        h_sum           = math.fsum(h_cell);             # All h levels exist at every point, just very small
+        sea_mass        = np.multiply(h_sum,MOM.cell_area[row,col])
         # Total
-        tot_mass        = ice_mass + sno_mass + sea_mass;
+        tot_mass        = math.fsum([ice_mass,sno_mass,sea_mass])
         # 3. Redistribute mass to halo cells
-        delta_mass      = c_wgts*tot_mass                # mass going to each halo cell
-        delta_h         = delta_mass/MOM.cell_area       # converted to change in h thickness
-        newh            = h2vgrid(delta_h,MOM.h_oce,MOM) # Apply del h to each depth level in halo
+        delta_mass      = np.multiply(c_wgts,tot_mass)        # mass going to each halo cell
+        delta_h         = np.divide(delta_mass,MOM.cell_area) # converted to change in h thickness
+        newh            = h2vgrid(delta_h,MOM.h_oce,MOM)      # Apply del h to each depth level in halo
         
         # 4. Correct tracer concentrations for change in h thickness
         o_temp, o_salt = tracer_correct(MOM.h_oce,newh,MOM) # This alters exising tracer fields and returns
@@ -575,7 +575,7 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
     tmp          = cp.deepcopy(MOM.h_oce);                        # Dummy variable
     tmp          = np.where(tmp>0.01, tmp, np.nan);               # While all layers always exist, we only want them if they have 
     MOM.h_lvls   = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers, defined has having h > 0.001)
-    MOM.wght     = np.full(MOM.h_oce.shape,np.nan)                # Cell weights for mass redistribution
+    MOM.wght     = np.full(MOM.h_oce.shape,0).astype(float)         # Cell weights for mass redistribution
     for i in range(MOM.h_lvls.shape[0]):                          # we add mass to a layer proportional to its thickness
         for j in range(MOM.h_lvls.shape[1]):
             lvls = MOM.h_lvls[i,j];

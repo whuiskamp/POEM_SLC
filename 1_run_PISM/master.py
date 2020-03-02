@@ -29,7 +29,7 @@ __status__ = "Prototype"
 ########### FOR TESTING ###########################
 # Run after init of data structs
 ICE.I_mask[1,82] = 1
-ICE.I_mask[79,111] = 1
+#ICE.I_mask[79,111] = 1
 
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
@@ -45,7 +45,8 @@ if __name__ == "__main__":
     # Implement changes to land sea mask and redistribute relevant tracers
     else:
         # There are cells that need altering, so run applicable scripts.
-        redist_vals(MOM,SIS,OLD,FLAGS)
+        redist_vals(MOM,SIS,OLD,FLAGS) # Error in mass currently 336879327232.0
+        # There is something still wrong in the h2vgrid function
 
 
 
