@@ -109,6 +109,7 @@ def h2vgrid(delh,h,MOM):
     #      wght   - Weighting for the addition of mass to each cell (global var.)
     # Out: newh   - updated h grid with redistributed mass
     newh = cp.deepcopy(h);
+    lvls = MOM.h_lvls.astype(int)
     
     for i in range(delh.shape[0]):
         for j in range(delh.shape[1]):
@@ -116,12 +117,12 @@ def h2vgrid(delh,h,MOM):
                 if 0 < delh[i,j] <= 1:              # Adding mass
                     newh[0,i,j] = np.sum([h[0,i,j],delh[i,j]])
                 elif delh[i,j] > 1:                 # Adding lots of mass
-                    for k in MOM.h_lvls-1:
+                    for k in range(lvls[i,j]):
                         newh[k,i,j] = np.sum([h[k,i,j],np.multiply(delh[i,j],MOM.wght[k,i,j])])
                 elif -1 < delh[i,j] < 0:            # Removing mass
                     newh[0,i,j] = np.sum([h[0,i,j],delh[i,j]])
                 elif delh[i,j] < -1:                # Removing lots of mass
-                    for k in MOM.h_lvls-1:
+                    for k in range(lvls[i,j]):
                         newh[k,i,j] = np.sum([h[k,i,j],np.multiply(delh[i,j],MOM.wght[k,i,j])])
     if np.any(np.less(newh,0)): # check if we've accidentally created cells of -tive thickness
         raise ValueError(str('Oops! You have negative layer thicknesses'))
@@ -492,7 +493,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
     #      e_sno (new/old)    - Fields of snow enthalpy prior to and after
     #                           redistribution (J)
     #      ice_frac (new/old) - Fraction of a cell with sea ice prior to and after
-    #                            redistribution (J)
+    #                           redistribution (J)
     #      MOM                - Ocean data structure (contains all updated values)
     #      SIS                - Sea ice data structure (contains all updated values)
     #      OLD                - Data structure with values prior to redistribution
