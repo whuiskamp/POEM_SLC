@@ -138,9 +138,9 @@ def tracer_correct(h,newh,MOM):
     #      o_salt - ocean salinity (global var)
     # Out: new_t  - corrected temperature field
     #      new_s  - corrected salinity field
-    m_ratio = h/newh;
-    new_s   = m_ratio*MOM.o_salt
-    new_t   = m_ratio*MOM.o_temp
+    m_ratio = np.divide(h,newh);
+    new_s   = np.multiply(m_ratio,MOM.o_salt)
+    new_t   = np.multiply(m_ratio,MOM.o_temp)
     
     return new_t, new_s
 
@@ -196,7 +196,7 @@ def redist_mass(MOM,SIS,row,col):
                                                      # values corrected for change in mass
         # 5. Remove ocean cell from h field
         newh[:,row,col] = 0                          # Remove mass from cell and set layers to be land
-        
+        SIS.ice_frac[:,row,col] = 0                  # Remove ice and snow from cell
     elif MOM.chng_mask(row,col) == 1: # Filling a cell (land -> ocean)
         # 2. Check surrounding SSH
         eta_mean = halo_eta(MOM.eta,row,col);
@@ -361,11 +361,11 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
                                       SIS.s_ice,SIS.H_to_kg_m2,SIS.nk_ice)
             
             # 1.5 Sum salt in ocean water
-            oce_tot = sum_ocean_salt(row,col,MOM.o_salt,MOM.h_oce,MOM,"False")
+            oce_tot = sum_ocean_salt(row,col,MOM.o_salt,MOM.h_oce,MOM,True)
             tot_salt = oce_tot + ice_tot
             
             # 1.6 Calculate how much salt each halo cell recieves
-            delta_salt        = c_wgts*tot_salt          # salt going to each halo cell
+            delta_salt        = c_wgts*(tot_salt*1000) # salt going to each halo cell
             o_salt            = tracer2cell(delta_salt,MOM.o_salt,MOM,'salt')
             o_salt[:,row,col] = 0                        # This cell is now land
             new_tracer        = o_salt
@@ -399,7 +399,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
             for i in range(MOM.grid_z):
                 S[i],_,_ = halo_calc(row,col,MOM.o_salt[i,:,:],MOM,1,'mean')
             # 2.9 Calculate total salt for new cell
-            S_tot = sum_ocean_salt(row,col,S,newh,MOM,"True")
+            S_tot = sum_ocean_salt(row,col,S,newh,MOM,True)
             # 2.10 Calculate how much salt must be removed from each halo cell
             delta_salt      = c_wgts*S_tot          # salt going to each halo cell
             o_salt          = tracer2cell(-delta_salt,MOM.o_salt,MOM,'salt')
@@ -441,13 +441,14 @@ def tracer2cell(delta_t,tracer,MOM,var=''):
     #      MOM       - The ocean data structure
     #      var       - Name of the tracer being altered (string)
     # Out: new       - Updated tracer field (ppt for salt)
-    wght = np.full([MOM.grid_z,MOM.grid_y,MOM.grid_x],0)
-    mass = np.full([MOM.grid_z,MOM.grid_y,MOM.grid_x],0)
+    h_oce = cp.deepcopy(MOM.h_oce); h_oce[:,MOM.o_mask==0] = np.nan
+    wght = np.full([MOM.grid_z,MOM.grid_y,MOM.grid_x],np.nan)
+    mass = np.full(wght.shape,np.nan); new = np.full(wght.shape,np.nan)
     for i in range(MOM.grid_z):
-        mass[i,:,:] = MOM.h_oce[i,:,:] * MOM.cell_area
-        wght[i,:,:] = MOM.h_oce[i,:,:]/np.sum(MOM.h_oce,0)
+        mass[i,:,:] = np.multiply(h_oce[i,:,:],MOM.cell_area)
+        wght[i,:,:] = np.divide(h_oce[i,:,:],np.sum(h_oce,0))
         if var == 'salt':
-            new = tracer[i,:,:] + ((delta_t*1000)*wght)/mass[i,:,:]
+            new[i,:,:] = tracer[i,:,:] + (np.divide(np.multiply(delta_t,wght[i,:,:]),mass[i,:,:]))
     return new
 
 def chk_ssh(h_sum,MOM): # Unfinished- double check everything
@@ -470,7 +471,7 @@ def chk_ssh(h_sum,MOM): # Unfinished- double check everything
                 diff_y = abs((h_sum[i,j] - MOM.depth_new[i,j]) - (h_sum[i+1,j] - MOM.depth_new[i+1,j]))
                 if diff_y >= 1:
                     lrg_grd[i,j] = 1
-    return
+    return lrg_grd
     
 def chk_conserv(OLD,SIS,MOM,data=""):
     # This function checks conservation for a given quantity/tracer (currently
@@ -507,12 +508,10 @@ def chk_conserv(OLD,SIS,MOM,data=""):
         # Calculate total ice enthalpy
         for row in range(MOM.grid_y):
             for col in range(MOM.grid_x):
-                total_old += sum_ice_enth(row,col,OLD.e_ice[:,:,row,col], \
-                                   OLD.e_sno[:,:,row,col],OLD.h_ice[:,row,col], \
-                                   OLD.h_sno[:,row,col],OLD.ice_frac[:,row,col])
-                total_new += sum_ice_enth(row,col,SIS.e_ice[:,:,row,col], \
-                                   SIS.e_sno[:,:,row,col],SIS.h_ice[:,row,col], \
-                                   SIS.h_sno[:,row,col],SIS.ice_frac[:,row,col])
+                total_old += sum_ice_enth(row,col,OLD.e_ice,OLD.e_sno,OLD.h_ice, \
+                                   OLD.h_sno,OLD.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
+                total_new += sum_ice_enth(row,col,SIS.e_ice,SIS.e_sno,SIS.h_ice, \
+                                   SIS.h_sno,SIS.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
     elif data == 'salt':
         total_old = sum_ocean_salt(None,None,OLD.o_salt,OLD.h_oce,MOM,False)
         total_new = sum_ocean_salt(None,None,MOM.o_salt,MOM.h_oce,MOM,False)
@@ -572,11 +571,11 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
 #      H_to_kg_m2   - grid cell to mass conversion factor (1 by default)
     
     # Variable pre-processing
-#    h_sum        = np.sum(MOM.h_oce,0);                           # Depth of water column (NOT depth of bathymetry)
+    scale_fac    = 20                                             # A scaling factor determining how many times the surface are of the target cell is required for redist.  
     tmp          = cp.deepcopy(MOM.h_oce);                        # Dummy variable
     tmp          = np.where(tmp>0.01, tmp, np.nan);               # While all layers always exist, we only want them if they have 
     MOM.h_lvls   = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers, defined has having h > 0.001)
-    MOM.wght     = np.full(MOM.h_oce.shape,0).astype(float)         # Cell weights for mass redistribution
+    MOM.wght     = np.full(MOM.h_oce.shape,0).astype(float)       # Cell weights for mass redistribution
     for i in range(MOM.h_lvls.shape[0]):                          # we add mass to a layer proportional to its thickness
         for j in range(MOM.h_lvls.shape[1]):
             lvls = MOM.h_lvls[i,j];
@@ -596,7 +595,7 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
             #if o_mask_new[i,j] > 0: # For testing all possible ocean cells
                 halo_sum = 0;
                 size = 1;
-                while halo_sum < MOM.cell_area[i,j]*10:
+                while halo_sum < MOM.cell_area[i,j]*scale_fac:
                     halo_sum,_,_ = halo_calc(i,j,MOM.cell_area,MOM,size,'sum');
                     size+=1
                 MOM.h_size_mask[i,j] = size-1; del halo_sum
@@ -608,9 +607,15 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
                 MOM.o_temp = redist_tracers(MOM,SIS,i,j,'temp')
                 MOM.o_salt = redist_tracers(MOM,SIS,i,j,'salt') 
                 MOM.h_oce, MOM.o_salt, MOM.o_temp = redist_mass(MOM,SIS,i,j)
+                # Change NaN vals in T and S fields back to 0's
+                MOM.o_temp[np.isnan(MOM.o_temp)] = 0
+                MOM.o_salt[np.isnan(MOM.o_salt)] = 0
     if FLAGS.verbose:
+        print('Checking for conservation of mass...')
         chk_conserv(OLD,SIS,MOM,'mass')
+        print('Checking for conservation of energy...')
         chk_conserv(OLD,SIS,MOM,'temp')
+        print('Checking for conservation of salt...')
         chk_conserv(OLD,SIS,MOM,'salt')
 #        print('Redistribution of mass and tracers complete.' \
 #              '\n Error in mass   = '+str(err_mass) + \

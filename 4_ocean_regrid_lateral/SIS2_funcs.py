@@ -87,9 +87,11 @@ def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice,kg_H):
     #      h_sno                  - Snow mass (kg/m2)
     #      h_ice                  - Ice mass (kg/m2)
     #      S                      - Salinity of ice (g/kg). Default is 5.0
+    #      kg_H                   - Conversion factor for mass to grid height (default 1)
+    #                               This is h_to_kg_m2 var in the param file
     # Out: total                  - total energy in cell (J)
     
-    kg_H_Nk = kg_H/e_ice.shape[0]; total = 0
+    kg_H_Nk = kg_H/e_ice.shape[0]; total = 0; part_wt = 0
     
     for cat in range(e_ice.shape[1]):
         part_wt = cell_area[row,col]*ice_frac[cat,row,col]

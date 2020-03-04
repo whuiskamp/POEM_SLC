@@ -26,17 +26,16 @@ __maintainer__ = "Willem Huiskamp"
 __email__ = "huiskamp@pik-potsdam.de"
 __status__ = "Prototype"
 
-########### FOR TESTING ###########################
-# Run after init of data structs
-ICE.I_mask[1,82] = 1
-#ICE.I_mask[79,111] = 1
-
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
     test = True # We'll use different datasets while running tests
     verbose = True # Activates verbose output and error-checking
     # Read in model files and create data structures
     MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test,verbose)
+    ########### FOR TESTING ###########################
+    # Run after init of data structs
+    #ICE.I_mask[1,82] = 1
+    ICE.I_mask[79,111] = 1 #Error of -12537105286144.0
     # Check to see if cells need to change to/from land/ocean
     check_water_col(MOM,ICE,FLAGS)
     if FLAGS.cont == False:
@@ -45,8 +44,7 @@ if __name__ == "__main__":
     # Implement changes to land sea mask and redistribute relevant tracers
     else:
         # There are cells that need altering, so run applicable scripts.
-        redist_vals(MOM,SIS,OLD,FLAGS) # Error in mass currently 336879327232.0
-        # There is something still wrong in the h2vgrid function
+        redist_vals(MOM,SIS,OLD,FLAGS) 
 
 
 
