@@ -164,3 +164,5 @@ Note on reproducible sums for stockchecking/ conservation. np.sum() is not stric
 NOTE: When we use halo_calc with tracers, 1) Sum should not be used, as it does not consider grid information and 2) Means are loosely approximate for the same reason (the only context in which 'mean' is used for tracer variables is to identify an appropriate temperature/ salinity value when initialising a new cell, in which insance, calculating this properly is not strictly necessary.)
 
 NOTE: We have 3 kinds of ocean mask in our MOM data class now: o_mask, o_mask_new and o_mask_redist. Are they really all used? Certainly we need o_mask_new; o_mask_redist is created then only used once? 
+
+Now adding in timing functions for all script components.

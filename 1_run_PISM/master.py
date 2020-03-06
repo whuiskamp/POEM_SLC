@@ -1,11 +1,13 @@
 # Over-arching script for dynamic sea level coupling code
 # This script reads data from restarts, creates python data structures and initialises
 # the main scipts.
+# This requires the use of cdo
 
 #from netCDF4 import Dataset as CDF
 #import copy as cp
 #import argparse
 #import numpy as np
+import time
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
@@ -28,14 +30,18 @@ __status__ = "Prototype"
 
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
-    test = True # We'll use different datasets while running tests
+    t_main_start = time.time()
+    test    = True # We'll use different datasets while running tests
     verbose = True # Activates verbose output and error-checking
+    # Regrid PISM and VILMA data to the MOM grid
+
     # Read in model files and create data structures
     MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test,verbose)
     ########### FOR TESTING ###########################
     # Run after init of data structs
     #ICE.I_mask[1,82] = 1
-    ICE.I_mask[79,111] = 1 #Error of -12537105286144.0
+    ICE.I_mask[79,111] = 1 
+    ###################################################
     # Check to see if cells need to change to/from land/ocean
     check_water_col(MOM,ICE,FLAGS)
     if FLAGS.cont == False:
@@ -45,10 +51,14 @@ if __name__ == "__main__":
     else:
         # There are cells that need altering, so run applicable scripts.
         redist_vals(MOM,SIS,OLD,FLAGS) 
-
-
-
-
+    t_main_end = time.time()
+    if verbose:
+        t_main   = t_main_end - t_main_start
+        t_data   = FLAGS.t_data
+        t_chk    = FLAGS.t_chk_cells
+        t_redist = FLAGS.t_redist
+        
+        
 # Create new restarts for MOM and SIS - need to find a home for this
 #    sp.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc',\
 #                   '/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.new.nc'])

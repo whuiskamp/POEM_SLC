@@ -37,7 +37,7 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
 #import os
 import numpy as np
 import copy as cp
-#import time
+import time
 import math
 #import matplotlib.pyplot as plt
 #from netCDF4 import Dataset as CDF
@@ -570,6 +570,7 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
 #      C_P          - The heat capacity of seawater in MOM6 (J kg-1 K-1)
 #      H_to_kg_m2   - grid cell to mass conversion factor (1 by default)
     
+    t_start = time.time()
     # Variable pre-processing
     scale_fac    = 20                                             # A scaling factor determining how many times the surface are of the target cell is required for redist.  
     tmp          = cp.deepcopy(MOM.h_oce);                        # Dummy variable
@@ -621,7 +622,7 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
 #              '\n Error in mass   = '+str(err_mass) + \
 #              '\n Error in energy = '+str(err_T) +\
 #              '\n Error in salt   = '+str(err_S))
-    
+    FLAGS.t_redist = time.time() - t_start
     return
     
     

@@ -6,6 +6,7 @@
 from netCDF4 import Dataset as CDF
 import numpy as np
 import copy as cp
+import time
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
@@ -43,6 +44,7 @@ class Chk_vars:
     pass         
 
 def init_data_structs(work_dir,test,verbose):
+    t_start = time.time()  # Record time taken to run this script
     if test:
         new_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
         old_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
@@ -294,6 +296,9 @@ def init_data_structs(work_dir,test,verbose):
     OLD.h_ice          = h_ice_old
     OLD.h_sno          = h_sno_old
     OLD.ice_frac       = ice_frac_old
+    
+    # Time taken
+    FLAGS.t_data = time.time() - t_start
     
     return MOM, SIS, OLD, ICE, ETH, FLAGS 
     
