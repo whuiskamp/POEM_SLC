@@ -9,6 +9,7 @@
 #import numpy as np
 import time
 import sys
+
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
@@ -17,7 +18,7 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid
 from create_data_structs import init_data_structs 
 from chk_water_col import check_water_col
 from regrid_lateral import redist_vals
-
+import regrid_restarts
 import matplotlib.pyplot as plt
 __author__ = "Willem Huiskamp"
 __copyright__ = "Copyright 2020"
@@ -31,12 +32,13 @@ __status__ = "Prototype"
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works
     t_main_start = time.time()
+    exp_path = '/p/projects/climber3/huiskamp/POEM/work/slr_tool/'
     test    = True # We'll use different datasets while running tests
     verbose = True # Activates verbose output and error-checking
-    # Regrid PISM and VILMA data to the MOM grid
-
+    # Regrid PISM and VILMA data to the MOM grid and generate new topography
+    t_regr = regrid_restarts(exp_path)
     # Read in model files and create data structures
-    MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/',test,verbose)
+    MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs((str(exp_path) + 'test_data/'),test,verbose)
     ########### FOR TESTING ###########################
     # Run after init of data structs
     #ICE.I_mask[1,82] = 1
@@ -52,12 +54,13 @@ if __name__ == "__main__":
         # There are cells that need altering, so run applicable scripts.
         redist_vals(MOM,SIS,OLD,FLAGS) 
     t_main_end = time.time()
-    if verbose:
-        t_main   = t_main_end - t_main_start
-        t_data   = FLAGS.t_data
-        t_chk    = FLAGS.t_chk_cells
-        t_redist = FLAGS.t_redist
-        
+    if FLAGS.verbose:
+        t_main   = t_main_end - t_main_start    # Total time for the program
+        t_regrid = t_main_end - t_regr          # Time taken to regrid input restart files
+        t_data   = FLAGS.t_data                 # Time taken to create data structs
+        t_chk    = FLAGS.t_chk_cells            # Time taken to check cells for changes in ocean grid
+        t_redist = FLAGS.t_redist               # Time taken to redistribute mass and tracers
+        t_write  =                              # Time taken to write new resarts
         
 # Create new restarts for MOM and SIS - need to find a home for this
 #    sp.run(['cp','/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc',\

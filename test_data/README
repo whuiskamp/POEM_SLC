@@ -1,0 +1,6 @@
+Tue Jul 28 11:57:49 CEST 2020
+This folder contains date for running the 'test' configuration of the sea level change scripts.
+In the long-term, topog_master.nc should have values for land as well as ocean (ie: not just 0 on land) which will
+be used to determine new ocean/land changes in a subsequent run. This is not being done as the test does not 
+incorporate VILMA output yet and upon reflection, making this master file only makes sense for the final, new grid
+which extends to 90S.

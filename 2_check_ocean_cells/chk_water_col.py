@@ -97,31 +97,3 @@ def check_water_col(MOM,ICE,FLAGS):
         t_end = time.time()
         FLAGS.t_chk_cells = t_end - t_start
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
