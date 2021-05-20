@@ -13,11 +13,11 @@ Process of a simulation
 	5 - Change in ice sheet extent - land/sea mask changes?
 	6 - Any new ocean cells? (MPI only allow new cells to appear/disappear if they were previously coastal)
 	7 - Are all ocean cells valid (no isolated blobs, can they advect)?
-	8 - Are there straits/passages that should be open? Parameterise with crossland mixing?
+	8 - Are there straits/passages that should be forced open? 
 For next run
-	8 - Re-generate exchange grids and mosaics
+	8 - Re-generate exchange grids and mosaics (?)
 	9 - Modify ocean and sea ice restart files (mass, tracers).
-	9 - *Regenerate river-routing fields for land model* ! This is not yet automated. Requires manual corrections. 
+	9 - *Regenerate river-routing fields for land model* ! This is not yet automated. Can perhaps be done with the GFDL tool that comes with MOM6
 	10 - Create fields for fluxes to/from PICO-PISM
 
 
