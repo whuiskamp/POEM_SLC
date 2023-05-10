@@ -16,8 +16,9 @@ This tool is written is Python 3 and requires the following packages:
 - Time
 - Math
 
-In addition, it requires the tools that come natively with 
-MOM6/SIS2 in order to re-generate river runoff maps when the land-sea mask changes.
+In addition, it requires the tool regrid runoff created by Alistair Adcroft
+in order to re-generate river runoff maps when the land-sea mask changes. This tool can be found here:
+https://github.com/adcroft/regrid_runoff
 
 ## Current functionality
 Currently, the plan is to allow the tool to be used as part of the PISM-MOM
