@@ -10,10 +10,9 @@
 import time
 import sys
 
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/data_processing')
+
 # Import custom functions
 from create_data_structs import init_data_structs 
 from chk_water_col import check_water_col
@@ -36,7 +35,8 @@ if __name__ == "__main__":
     test    = True # We'll use different datasets while running tests
     verbose = True # Activates verbose output and error-checking
     # Regrid PISM and VILMA data to the MOM grid and generate new topography
-    t_regr = regrid_restarts(exp_path)
+    regrid_restarts(exp_path)
+    t_regr = time.time()
     # Read in model files and create data structures
     MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs((str(exp_path) + 'test_data/'),test,verbose)
     ########### FOR TESTING ###########################

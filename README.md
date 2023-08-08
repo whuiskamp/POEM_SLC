@@ -20,6 +20,8 @@ In addition, it requires the tool regrid runoff created by Alistair Adcroft
 in order to re-generate river runoff maps when the land-sea mask changes. This tool can be found here:
 https://github.com/adcroft/regrid_runoff
 
+Finally, ```cdo``` should be installed in the environment in which this package is run, as it is required for ```regrid_restarts.py```
+
 ## Current functionality
 Currently, the plan is to allow the tool to be used as part of the PISM-MOM
 coupling framework of Kreuzer et al. 21, as well as standalone (e.g. when
