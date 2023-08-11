@@ -2,7 +2,7 @@
 #
 # This file is for running MOM6-SIS2 in a standalone configuration with a changing land-sea mask
 # due to changes in ocean mass or externally forced changes in bathymetry depth.
-# It assumes the INPUT directory contains a master topography file with both topography and bathymetry in the same field.
+# It assumes the INPUT directory contains a master topography file 'topog_ctrl.nc' with both topography and bathymetry in the same field.
 
 #SBATCH --job-name=MOM6_SLC
 
@@ -72,7 +72,8 @@ do
     time_tot = 0
     # Run poem for coupling timestep
     OM4_run
-    
+    if [$RUN == 1]; then
+       cp ${diag_dir}/MOM6_run${RUN}/{MOM_parameter_doc.all,SIS_parameter_doc.all} $SLC_work
     # Run sea level change tool
     slc_run
     

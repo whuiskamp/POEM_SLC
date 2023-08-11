@@ -1,5 +1,10 @@
+#!/usr/bin/env python3
+
 # This script creates classes to handle the restart variables
-# from the climate model output
+# from the climate model output, in addition to requiring the topography file
+# from MOM6 and the ocean and ice parameter files created at runtime. 
+# The script assumes that these files are moved to a working directory at the end
+# of a simulation. 
 # Note that for Boussinesq numerics, H_to_m is used instead of H_to_kg_m2.
 # In any event, this should not matter either way because they default to 1
 
@@ -13,15 +18,6 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channe
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
 from shared_funcs import get_param
 from shared_funcs import calc_coast
-
-__author__ = "Willem Huiskamp"
-__copyright__ = "Copyright 2020"
-__credits__ = ["Willem Huiskamp", ""]
-__license__ = "GPLv3"
-__version__ = "1.0.0"
-__maintainer__ = "Willem Huiskamp"
-__email__ = "huiskamp@pik-potsdam.de"
-__status__ = "Prototype"
 
 # Class containing option flags
 class option_flags:
@@ -43,31 +39,31 @@ class VILMA_vars:
 class Chk_vars:
     pass         
 
-def init_data_structs(work_dir,test,verbose):
-    t_start = time.time()  # Record time taken to run this script
-    if test:
-        new_bathy  = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
-        old_bathy  = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
-        ctrl_bathy = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/topog.nc','r')
-        MOM6_rest  = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM.res.nc','r')
-        SIS2_rest  = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ice_model.res.nc','r')
-        Omask      = CDF('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/INPUT/ocean_mask.nc','r')
-        grid       = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
-        vgrid      = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
-        params_MOM = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM_parameter_doc.all','r').readlines()
-        params_SIS = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/SIS_parameter_doc.all','r').readlines()
-    else:
-        old_bathy  = CDF(work_dir + 'INPUT/topog.nc','r')
-        new_bathy  = CDF(work_dir + '/tmp/topog.nc','r')
-        MOM6_rest  = CDF(work_dir + '/RESTART/MOM.res.nc','r')
-        SIS2_rest  = CDF(work_dir + '/RESTART/ice_model.res.nc','r')
-        params_MOM = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/MOM_parameter_doc.all','r').readlines()
-        params_SIS = open('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/SIS_parameter_doc.all','r').readlines()
-        #PISM_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
-        #VILMA_data = CDF('path/to/PISM/DATA','r') # this should already have been regridded
-        #Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
-        #grid      = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
-        #vgrid     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
+def init_data_structs(work_dir,ICE,EARTH,verbose):
+    t_start = time.time()  # Record time taken to run this function
+    
+    # Identidy restart, parameter, and gridspec files
+    old_bathy  = CDF(work_dir + '../INPUT/topog.nc','r')
+    new_bathy  = CDF(work_dir + '/topog.nc','r')
+    ctrl_bathy = CDF(workdir + '../INPUT/topog_ctrl','r')
+    MOM6_rest  = CDF(work_dir + '/MOM.res.nc','r')
+    SIS2_rest  = CDF(work_dir + '/ice_model.res.nc','r')
+    Omask      = CDF(workdir + 'ocean_geometry.nc','r')
+    vgrid      = CDF(workdir + 'vgrid.nc','r')
+    params_MOM = open(work_dir + '/MOM_parameter_doc.all','r').readlines()
+    params_SIS = open(work_dir + '/SIS_parameter_doc.all','r').readlines()
+    Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
+    grid      = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
+    vgrid     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
+
+    if ICE:
+        PISM_data = CDF('path/to/PISM/DATA','r') # This should already have been regridded to the ocean grid
+    if EARTH:
+        VILMA_data = CDF('path/to/PISM/DATA','r') # This should already have been regridded to the ocean grid
+
+    if verbose:
+        print('Relevant restart and prarameter files found. Extracting data...')
+        
     # Extract/ define variables
     # Ocean
     h_oce        = MOM6_rest.variables['h'][0,:,:,:].data                # Ocean layer thickness (m)
@@ -100,8 +96,12 @@ def init_data_structs(work_dir,test,verbose):
     # This section should include all optional tracers such as biogeochemical fields
     try:
         age      = MOM6_rest.variables['age1']                           # Passive water mass age tracer (yrs)
+        print('Age tracer in use!')
     except(KeyError):
         print('Age tracer not in use')
+
+    if verbose:
+        print('Ocean vars successfully extracted')
 #    chng_mask    = chng_file.variables['chng_mask'][:,:];                # Mask of cells to change
     # Sea Ice
     # We do not import the incoming shortwave radiation as we have no reason to alter these fields
@@ -135,7 +135,9 @@ def init_data_structs(work_dir,test,verbose):
     rough_heat = rough_mom; rough_moist = rough_mom                      # These are identical land-sea masks
     #coszen                                                               # Cosine of solar zenith angle
     #T_skin                                                               # The sea ice surface skin temperature (deg C)
-    
+    if verbose:
+        print('Sea ice vars successfully extracted')
+
     # Parameters and new vars
     o_mask       = np.rint(Omask.variables['mask'][:,:].data);           # Old ocean mask (boolean)
     chng_mask    = np.full(o_mask.shape, 0);                             # Mask indicating where ocean/land cells are changing (0=no change, 1=land>ocean, -1=ocean>land)
@@ -150,6 +152,9 @@ def init_data_structs(work_dir,test,verbose):
     depth_old  = old_bathy.variables['depth'][:,:];                      # Ocean depth of previous simulation (m)
     depth_ctrl = ctrl_bathy.variables['depth'][:,:];                     # The control, pre-industrial bathymetry (m)
     
+    if verbose:
+        print('Masks and topography vars successfully extracted')
+
     # Grid variables
     lat        = grid.variables['geolat'][:,:];                          # Latitude of tracer cell-centres
     lon        = grid.variables['geolon'][:,:];                          # Longitude of tracer cell-centres
@@ -158,17 +163,23 @@ def init_data_structs(work_dir,test,verbose):
     grid_z     = int(get_param(params_MOM,'NK'));                        # Number of vertical levels in ocean
     cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
     nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
-    grid_dz    = vgrid.variables['dz'][:];                               # Default vertical grid spacing (m)
+    grid_dz    = vgrid.variables['dz'][:];                               # Default vertical grid spacing (m) (at the moment this is not used)
     
+    if verbose:
+        print('Grid vars successfully extracted')
+
     # Solid Earth and Ice sheet fields
-    if test: # In tests, we don't change topography or alter the land ice extent
-        topo_chng = np.full(o_mask.shape, 0);
-        ice_mask  = cp.deepcopy(o_mask);
-        ice_mask *= -1
-    else:
+    if EARTH:
         topo_chng = VILMA_data.variables['rsl'][-1,:,:]                  # Relative sea level in m referenced to the start of the simulation (we only want the most recent time-sclice)
+        print('RSL field from VILMA successfully extracted')
+    else:
+        print('Model running without solid earth. Bypassing RSL field')
+    if ICE:
         ice_mask  = PISM_data.variables['mask'][-1,:,:]                  # Land ice mask (1=ice-free bedrock, 2=grounded ice, 3=floating ice shelf, 4=open ocean) (we only want the most recent time-sclice)
-    
+        print('Grounded ice field from PISM successfully extracted')
+    else:
+        print('Model running without land ice. Bypassing grounded ice field')
+
     # Variable pre-processing
     h_oce[:,o_mask==0]  = 0                                              # Change land to 0
     ave_eta[o_mask==0]  = np.nan                                         # Change land to NaN
@@ -180,9 +191,15 @@ def init_data_structs(work_dir,test,verbose):
     e_sno_old  = cp.deepcopy(e_sno);  h_oce_old    = cp.deepcopy(h_oce);
     h_ice_old  = cp.deepcopy(h_ice);  o_salt_old   = cp.deepcopy(o_salt);
     h_sno_old  = cp.deepcopy(h_sno);  ice_frac_old = cp.deepcopy(ice_frac);
+
+    if verbose:
+        print('Preprocessing complete. Calculating coast...')
         
     # Identify coastal cells
     coast = calc_coast(o_mask)
+
+    if verbose:
+        print('Calculation of coast complete')
     
     # Close all input files (update with PISM/VILMA files later)
     new_bathy.close(); old_bathy.close(); ctrl_bathy.close(); MOM6_rest.close()
@@ -190,9 +207,8 @@ def init_data_structs(work_dir,test,verbose):
     
 ###############################################################################    
     # Initialise options class
-    FLAGS = option_flags()
-    FLAGS.test         = test
-    FLAGS.verbose      = verbose
+    #FLAGS = option_flags()
+    #FLAGS.verbose      = verbose
     
     # Initialise ocean data strucure
     MOM = MOM_vars()

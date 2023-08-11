@@ -19,14 +19,14 @@ from chk_water_col import check_water_col
 from regrid_lateral import redist_vals
 import regrid_restarts
 import matplotlib.pyplot as plt
-__author__ = "Willem Huiskamp"
-__copyright__ = "Copyright 2020"
-__credits__ = ["Willem Huiskamp", ""]
-__license__ = "GPLv3"
-__version__ = "1.0.0"
+__author__     = "Willem Huiskamp"
+__copyright__  = "Copyright 2020"
+__credits__    = ["Willem Huiskamp", ""]
+__license__    = "GPLv3"
+__version__    = "1.0.0"
 __maintainer__ = "Willem Huiskamp"
-__email__ = "huiskamp@pik-potsdam.de"
-__status__ = "Prototype"
+__email__      = "huiskamp@pik-potsdam.de"
+__status__     = "Prototype"
 
 if __name__ == "__main__":
 # For now, we ignore argument parsing - this will be implemented once the test script works

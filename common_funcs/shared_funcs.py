@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Feb 20 15:13:51 2020
 
-@author: huiskamp
-"""
-
-# File of shared functions
+# File of shared functions that are part of the sea level change (SLC) tool developed
+# for the POEM earth system model.
+# !!IMPORTANT!! This script assumes that the model grid is constructed with the transition to di-polar dome
+# grid at ~65N as is standard practice with MOM models. If this is (for some weird reason) not the case, this needs
+# to be accounted for in 'get_halo'.
 
 import numpy as np
 import re
@@ -20,7 +18,7 @@ def get_halo(MOM,row,col,size,omask,flag=''):
     #      size      - Radius of halo in gridcells
     #      grid_x    - Size of the ocean grid (longitude)
     #      grid_y    - Size of the ocean grid (latitude)
-    #        flag    - Ocean cells only = true, otherwise return whole halo mask
+    #        flag    - Ocean cells only = True, otherwise return whole halo mask
     # Out: halo_mask - Boolean mask indicating halo cells
         
     # Define variables

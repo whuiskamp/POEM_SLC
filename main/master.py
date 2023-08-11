@@ -25,7 +25,7 @@ from regrid_lateral import redist_vals
 import regrid_restarts
 
 __author__ 	   = "Willem Huiskamp"
-__copyright__  = "Copyright 2020"
+__copyright__  = "Copyright 2023"
 __credits__    = ["Willem Huiskamp", ""]
 __license__    = "GPLv3"
 __version__    = "1.0.0"
@@ -76,21 +76,22 @@ if __name__ == "__main__":
         print(" -> verbose output = True")
         print()
 
-    if args.verbose | args.PISM
+    if args.verbose | args.PISM:
         print("Running with PISM")
-    if args.verbose | args.VILMA
+    if args.verbose | args.VILMA:
         print("Running with VILMA")
         print()
 
 ########### Regridding PISM/VILMA restarts (Optional) ###########
-
-    if args.PISM or args.VILMA
+        t_regr_start = tim.time()
+    if args.PISM or args.VILMA:
         regrid_rest(args.path)
 
+        t_regr_end = time.time()
 
-
-
-
+########### Read in model files and create data structures ###########
+    MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
+    
 
 
 
