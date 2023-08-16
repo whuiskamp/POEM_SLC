@@ -3,6 +3,8 @@
 # the main scipts.
 # This requires the use of cdo
 
+#!!!!!!!!!!!!!!!!!!!!!!!! THIS SCRIPT IS NOW DEPRECATED. IT WILL NO LONGER FUNCTION !!!!!!!!!!!!!!!!!!
+
 #from netCDF4 import Dataset as CDF
 #import copy as cp
 #import argparse
@@ -38,7 +40,7 @@ if __name__ == "__main__":
     regrid_restarts(exp_path)
     t_regr = time.time()
     # Read in model files and create data structures
-    MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs((str(exp_path) + 'test_data/'),test,verbose)
+    MOM,SIS,OLD,ICE,FLAGS = init_data_structs((str(exp_path) + 'test_data/'),verbose)
     ########### FOR TESTING ###########################
     # Run after init of data structs
     #ICE.I_mask[1,82] = 1

@@ -32,11 +32,11 @@ class SIS_vars:
 class PISM_vars:
     pass
 # This class contains all relevant variables from the VILMA restart file
-class VILMA_vars:
-    pass
+#class VILMA_vars:
+#    pass
 # This class contains all 'old' fields of variables that will require stock-
 # checking for conservation.    
-class Chk_vars:
+class old_vars:
     pass         
 
 def init_data_structs(work_dir,ICE,EARTH,verbose):
@@ -57,9 +57,9 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     vgrid     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
 
     if ICE:
-        PISM_data = CDF('path/to/PISM/DATA','r') # This should already have been regridded to the ocean grid
+        PISM_data = CDF(workdir + 'ice-data','r') # This should already have been regridded to the ocean grid
     if EARTH:
-        VILMA_data = CDF('path/to/PISM/DATA','r') # This should already have been regridded to the ocean grid
+        VILMA_data = CDF(workdir + 'earth_data','r') # This should already have been regridded to the ocean grid
 
     if verbose:
         print('Relevant restart and prarameter files found. Extracting data...')
@@ -92,13 +92,15 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     Kv_shear_Bu  = MOM6_rest.variables['Kv_shear_Bu']                    # Shear-driven turbulent viscosity at vertex interfaces (m2 s-1)
     Kv_slow      = MOM6_rest.variables['Kv_slow']                        # Vertical turbulent viscosity at interfaces due to slow processes (m2 s-1)
     
-    # Optional ocean vars
+    ######################### Optional ocean vars ########################
     # This section should include all optional tracers such as biogeochemical fields
     try:
         age      = MOM6_rest.variables['age1']                           # Passive water mass age tracer (yrs)
         print('Age tracer in use!')
     except(KeyError):
         print('Age tracer not in use')
+
+    ######################### End Optional ocean vars #####################
 
     if verbose:
         print('Ocean vars successfully extracted')
@@ -172,12 +174,15 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     if EARTH:
         topo_chng = VILMA_data.variables['rsl'][-1,:,:]                  # Relative sea level in m referenced to the start of the simulation (we only want the most recent time-sclice)
         print('RSL field from VILMA successfully extracted')
+        depth_new = depth_new[:,:] + topo_chng[:,:]                      # Update topography with RSL fields from VILMA
+        print('Topography updated with RSL field from VILMA')
     else:
         print('Model running without solid earth. Bypassing RSL field')
     if ICE:
         ice_mask  = PISM_data.variables['mask'][-1,:,:]                  # Land ice mask (1=ice-free bedrock, 2=grounded ice, 3=floating ice shelf, 4=open ocean) (we only want the most recent time-sclice)
         print('Grounded ice field from PISM successfully extracted')
     else:
+        ice_mask = np.zeros((grid_y,grid_x))                             # With no ice data, we just init an array of 0's 
         print('Model running without land ice. Bypassing grounded ice field')
 
     # Variable pre-processing
@@ -298,12 +303,8 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     ICE = PISM_vars()
     ICE.I_mask         = ice_mask
     
-    # Initialise solid earth data structure
-    ETH = VILMA_vars()
-    ETH.Delta_topo      = topo_chng
-    
     # Initialise stock checking data structure
-    OLD = Chk_vars()
+    OLD = old_vars()
     OLD.o_temp         = o_temp_old
     OLD.h_oce          = h_oce_old
     OLD.o_salt         = o_salt_old
@@ -316,5 +317,5 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     # Time taken
     FLAGS.t_data = time.time() - t_start
     
-    return MOM, SIS, OLD, ICE, ETH, FLAGS 
+    return MOM, SIS, OLD, ICE, FLAGS 
     

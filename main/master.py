@@ -90,13 +90,15 @@ if __name__ == "__main__":
         t_regr_end = time.time()
 
 ########### Read in model files and create data structures ###########
-    MOM,SIS,OLD,ICE,ETH,FLAGS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
-    
+    MOM,SIS,OLD,ICE,FLAGS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
 
-
-
-
-
+########### Check if any cells need to change from land-ocean & vice versa ###########
+    check_water_col(MOM,ICE,FLAGS)
+    if FLAGS.cont == False:
+        # No cells are changing, copy new input files and restart model
+    else:
+        # There are cells that need altering, redistribute mass and tracers
+        redist_vals(MOM,SIS,OLD,FLAGS)
 
 
 
