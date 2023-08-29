@@ -216,6 +216,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     FLAGS.verbose      = verbose
     FLAGS.ICE          = ICE
     FLAGS.EARTH        = EARTH
+    FLAGS.w_dir        = work_dir
     # Initialise ocean data strucure
     MOM = MOM_vars()
     MOM.o_mask         = o_mask

@@ -76,6 +76,11 @@ do
        cp ${diag_dir}/MOM6_run${RUN}/{MOM_parameter_doc.all,SIS_parameter_doc.all} $SLC_work
     # Run sea level change tool
     slc_run
+
+    # If change mask of altered cells has been generated, store it properly
+    if [-f chng_mask.pdf]; then
+        mv chng_mask.pdf ${diag_dir}/MOM6_run${RUN}/chng_mask_${RUN}.pdf
+    
     
     # 
 done

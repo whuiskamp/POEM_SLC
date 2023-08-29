@@ -9,15 +9,6 @@ import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
 from shared_funcs import get_halo
 
-__author__     = "Willem Huiskamp"
-__copyright__  = "Copyright 2020"
-__credits__    = ["Willem Huiskamp", ""]
-__license__    = "GPLv3"
-__version__    = "1.0.0"
-__maintainer__ = "Willem Huiskamp"
-__email__      = "huiskamp@pik-potsdam.de"
-__status__     = "Alpha"
-
 # For testing, create dummy o_mask array with isolated cells
 # Normal square block
 #o_mask = np.full([20,20],1)
@@ -370,7 +361,9 @@ def fix_iso_cells(iso_mask,MOM):
 def check_cells(MOM,FLAGS):
     # This function checks the ocean mask for cells or groups of cells isolated
     # from the ocean. For the tracing algorithm to function, we must first 
-    # eliminate individual isolated cells.
+    # eliminate individual isolated cells. Input to this function is assumed to be
+    # two data classes in which all ocean data and optional flags are stored. These 
+    # are initialsed in 'create_data_structs.py
     # In:  o_mask    - Ocean mask (ocean = 1, land = 0)
     #      chng_mask - A mask indicating which cells are changing from the last 
     #                  simulation to the next (-1 = new land, 1 = new ocean)

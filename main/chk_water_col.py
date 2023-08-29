@@ -1,4 +1,6 @@
-# This script checks the integrated column thickness of ocean cells and determines whether or not they should be changed to land.
+# This script 1) Updates topography depth with a uniform correction of +-1m depending on 
+# changes in global mean sea level and 2) checks the integrated column thickness of ocean 
+# cells and determines whether or not they should be changed to land.
 # 
 # This script requires the following inputs:
 #  - MOM6 restart file
@@ -48,27 +50,28 @@ def check_water_col(MOM,ICE,FLAGS):
                 MOM.depth_new[i,j]  = 0; 
                 MOM.chng_mask[i,j]  = -1;
     
-    # Check 2: Has change in SSH/ bathymetry created new land?
+    # Check 2: Has a change in SSH created new land?
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if (MOM.ave_eta[i,j] + MOM.depth_new[i,j] < 2) and MOM.o_mask[i,j] > 0:
+            if  MOM.h_sum[i,j] < 2 and MOM.o_mask[i,j] > 0:
                 MOM.o_mask_new[i,j] = 0;
                 MOM.depth_new[i,j]  = 0;
                 MOM.chng_mask[i,j]  = -1;
-    # If running with VILMA, ensure land cells do in fact have a depth of zero.
-    #if FLAGS.EARTH:
-    #    MOM.depth_new[MOM.o_mask == 0] = 0    
+     
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if ICE.I_mask[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.coast == 1 and MOM.depth_new[i,j] >= 5:
-                eta_mean = halo_eta(MOM.eta,i,j);
-                if eta_mean + MOM.depth_new[i,j] > 5: # optionally add: and coast[i,j] == 1: 
+                eta_mean = halo_eta(MOM.h_sum,i,j);
+                if eta_mean >= 5: 
                     MOM.chng_mask[i,j]  = 1;
                     MOM.o_mask_new[i,j] = 1;
+    
+    # Having completed these checks/ changes, set all land values to 0.
+    MOM.depth_new[MOM.o_mask <= 0] = 0   
 
     # Finally, we need to make sure our new land-sea mask has not created isolated
-    # cells or inland seas, if so, updated o_mask and chng_mask where required
+    # cells or inland seas, if so, update o_mask and chng_mask where required
     
     if np.any(MOM.chng_mask): # We only need to perform this test if cells change
         check_cells(MOM,FLAGS)               
@@ -89,7 +92,7 @@ def check_water_col(MOM,ICE,FLAGS):
         # Add lines to make cells clearer
         ax.grid(which='minor', color='w', linewidth=0.5)
         #ax.set_frame_on(False)
-        plt.savefig('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/chng_mask.pdf', dpi=150)
+        plt.savefig(FLAGS.w_dir + 'chng_mask.pdf', dpi=150)
         t_end = time.time()
         FLAGS.t_chk_cells = t_end - t_start
     else:
