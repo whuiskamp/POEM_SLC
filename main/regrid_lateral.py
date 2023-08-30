@@ -28,19 +28,17 @@
 # Note that the variable o_mask_new should be the same as the old ocean mask,
 # but with points changing to land also masked out. Points changing to ocean should
 # remain land in this mask! This is done to ensure a smoother initialisation of new
-# ocean points.
+# ocean points (we do not want to draw mass/ tracers from cells that are being initialised
+# in the current offline-coupling step).
 
-#import subprocess as sp
 import sys
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
 #import os
 import numpy as np
 import copy as cp
 import time
 import math
-#import matplotlib.pyplot as plt
-#from netCDF4 import Dataset as CDF
+
 # Custom functions
 from shared_funcs import get_halo
 from shared_funcs import halo_eta
