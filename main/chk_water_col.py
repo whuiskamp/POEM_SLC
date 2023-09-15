@@ -37,9 +37,11 @@ def check_water_col(MOM,ICE,FLAGS):
     glob_ave_ssh = np.mean(MOM.ave_ssh)
     if glob_ave_ssh >= 1:
         MOM.depth_new += 1
+        FLAGS.bathy_chg = True
     elif glob_ave_ssh <= -1:
         MOM.depth_new -= 1
-
+        FLAGS.bathy_chg = True
+    
     # Check 1: Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
     t_start = time.time()
