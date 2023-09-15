@@ -45,15 +45,6 @@ from shared_funcs import halo_eta
 from SIS2_funcs import sum_ice_enth
 from SIS2_funcs import sum_ice_sal
 
-__author__ = "Willem Huiskamp"
-__copyright__ = "Copyright 2020"
-__credits__ = ["Willem Huiskamp", ""]
-__license__ = "GPLv3"
-__version__ = "1.0.0"
-__maintainer__ = "Willem Huiskamp"
-__email__ = "huiskamp@pik-potsdam.de"
-__status__ = "Alpha"
-
 ############################## Define functions ###############################
 def halo_calc(row,col,data,MOM,size,operation):
     # This function calculates the sum or mean of some variable in halo cells

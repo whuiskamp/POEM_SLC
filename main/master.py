@@ -19,10 +19,11 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/data_processing')
 
 # Import custom functions
+import regrid_restarts
 from create_data_structs import init_data_structs 
 from chk_water_col import check_water_col
 from regrid_lateral import redist_vals
-import regrid_restarts
+import prep_restarts
 
 __author__ 	   = "Willem Huiskamp"
 __copyright__  = "Copyright 2023"
@@ -83,23 +84,30 @@ if __name__ == "__main__":
         print()
 
 ########### Regridding PISM/VILMA restarts (Optional) ###########
-        t_regr_start = tim.time()
     if args.PISM or args.VILMA:
+        t_regr_start = t.time()
+        if args.verbose:    
+            print("Regridding inputs files from PISM/VILMA...")
         regrid_rest(args.path)
-
-        t_regr_end = time.time()
+        t_regr_end = t.time()
 
 ########### Read in model files and create data structures ###########
     MOM,SIS,OLD,ICE,FLAGS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
 
 ########### Check if any cells need to change from land-ocean & vice versa ###########
     check_water_col(MOM,ICE,FLAGS)
-    if FLAGS.cont == False:
-        # No cells are changing, copy new input files and restart model
+    if (FLAGS.cont == False) and (FLAGS.bathy_chg == False):
+        print("No cells are changing, copy new input files and restart model")
+        pass
+    elif (FLAGS.cont == False) and (FLAGS.bathy_chg == True):
+        update_bathy(MOM)
     else:
         # There are cells that need altering, redistribute mass and tracers
         redist_vals(MOM,SIS,OLD,FLAGS)
-
+        # Now we need to update secondary fields in the restart files
+        prep_fields(MOM,SIS)
+        # Write out new restart files
+        write_rest(MOM,SIS,FLAGS)
 
 
 

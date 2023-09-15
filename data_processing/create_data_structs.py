@@ -45,21 +45,19 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     # Identidy restart, parameter, and gridspec files
     old_bathy  = CDF(work_dir + '../INPUT/topog.nc','r')
     new_bathy  = CDF(work_dir + '/topog.nc','r')
-    ctrl_bathy = CDF(workdir + '../INPUT/topog_ctrl','r')
+    ctrl_bathy = CDF(work_dir + '../INPUT/topog_ctrl','r')
     MOM6_rest  = CDF(work_dir + '/MOM.res.nc','r')
     SIS2_rest  = CDF(work_dir + '/ice_model.res.nc','r')
-    Omask      = CDF(workdir + 'ocean_geometry.nc','r')
-    vgrid      = CDF(workdir + 'vgrid.nc','r')
+    vgrid      = CDF(work_dir + '../INPUT/vgrid.nc','r')
     params_MOM = open(work_dir + '/MOM_parameter_doc.all','r').readlines()
     params_SIS = open(work_dir + '/SIS_parameter_doc.all','r').readlines()
-    Omask     = CDF(work_dir + '/INPUT/ocean_mask.nc','r')
-    grid      = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/ocean_geometry.nc','r')
-    vgrid     = CDF('/p/projects/climber3/huiskamp/POEM/work/slr_tool/test_data/vgrid.nc','r')
+    Omask     = CDF(work_dir + '../INPUT/ocean_mask.nc','r')
+    grid      = CDF(work_dir + '/ocean_static.nc','r')
 
     if ICE:
-        PISM_data = CDF(workdir + 'ice-data','r') # This should already have been regridded to the ocean grid
+        PISM_data = CDF(work_dir + 'ice-data','r') # This should already have been regridded to the ocean grid
     if EARTH:
-        VILMA_data = CDF(workdir + 'earth_data','r') # This should already have been regridded to the ocean grid
+        VILMA_data = CDF(work_dir + 'earth_data','r') # This should already have been regridded to the ocean grid
 
     if verbose:
         print('Relevant restart and prarameter files found. Extracting data...')
@@ -94,6 +92,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     
     ######################### Optional ocean vars ########################
     # This section should include all optional tracers such as biogeochemical fields
+    # Not all of these will require alteration, they are just included here for completeness
     try:
         age      = MOM6_rest.variables['age1']                           # Passive water mass age tracer (yrs)
         print('Age tracer in use!')
@@ -174,10 +173,12 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     if EARTH:
         topo_chng = VILMA_data.variables['rsl'][-1,:,:]                  # Relative sea level in m referenced to the start of the simulation (we only want the most recent time-sclice)
         print('RSL field from VILMA successfully extracted')
-        depth_new = depth_ctrl[:,:] + topo_chng[:,:]                      # Update topography with RSL fields from VILMA
+        depth_new = depth_ctrl[:,:] + topo_chng[:,:]                     # Update topography with RSL fields from VILMA
         print('Topography updated with RSL field from VILMA')
+        bathy_chg = True
     else:
         print('Model running without solid earth. Bypassing RSL field')
+        bathy_chg = False
     if ICE:
         ice_mask  = PISM_data.variables['mask'][-1,:,:]                  # Land ice mask (1=ice-free bedrock, 2=grounded ice, 3=floating ice shelf, 4=open ocean) (we only want the most recent time-sclice)
         print('Grounded ice field from PISM successfully extracted')
@@ -189,7 +190,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     h_oce[:,o_mask==0]  = 0                                              # Change land to 0
     ave_eta[o_mask==0]  = np.nan                                         # Change land to NaN
     eta[o_mask==0]      = np.nan                                         # Change land to NaN
-    h_sum               = np.sum(h_oce,0);                               # Depth of water column (NOT depth of bathymetry)
+    h_sum               = np.sum(h_oce,0);                               # Thickness of water column (NOT depth of bathymetry)
     
     # Create copies of original fields for conservation checks 
     o_temp_old = cp.deepcopy(o_temp); e_ice_old    = cp.deepcopy(e_ice);
@@ -217,6 +218,8 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     FLAGS.ICE          = ICE
     FLAGS.EARTH        = EARTH
     FLAGS.w_dir        = work_dir
+    FLAGS.bathy_chg    = bathy_chg
+
     # Initialise ocean data strucure
     MOM = MOM_vars()
     MOM.o_mask         = o_mask
@@ -245,10 +248,6 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.vbt_IC         = vbt_IC
     MOM.uhbt_IC        = uhbt_IC
     MOM.vhbt_IC        = vhbt_IC
-    try:
-        MOM.age        = age
-    except:
-        pass
     MOM.Kd_shear       = Kd_shear
     MOM.Kv_shear       = Kv_shear
     MOM.TKE_turb       = TKE_turb
@@ -266,7 +265,12 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.cell_area      = cell_area
     MOM.C_P            = C_P
     MOM.H_to_m         = H_to_m
-        
+    # Optional fields
+    try:
+        MOM.age        = age
+    except:
+        pass
+
     # Initialise sea ice data structure
     SIS = SIS_vars()
     SIS.ice_frac       = ice_frac

@@ -79,6 +79,8 @@ do
     OM4_run
     if [$RUN == 1]; then
        cp ${diag_dir}/MOM6_run${RUN}/{MOM_parameter_doc.all,SIS_parameter_doc.all} $SLC_work
+       cp ${diag_dir}/MOM6_run${RUN}/*.ocean_static.nc $SLC_work/ocean_static.nc
+    
     # Run sea level change tool
     slc_run
 
