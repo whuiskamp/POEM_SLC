@@ -33,13 +33,17 @@ import matplotlib.pyplot as plt
 ################################# Main Code ###################################
 def check_water_col(MOM,ICE,FLAGS):
     # Before checking individual cells, check if an an adjustment needs to be made for 
-    # global means sea level
+    # global means sea level. If so, re-scale the topography and SSH fields.
     glob_ave_ssh = np.mean(MOM.ave_ssh)
     if glob_ave_ssh >= 1:
         MOM.depth_new += 1
+        MOM.eta       -= 1
+        MOM.ave_eta   -= 1  
         FLAGS.bathy_chg = True
     elif glob_ave_ssh <= -1:
         MOM.depth_new -= 1
+        MOM.eta       += 1
+        MOM.ave_eta   += 1
         FLAGS.bathy_chg = True
     
     # Check 1: Have we created new land via changes in ice sheet extent or
