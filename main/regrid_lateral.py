@@ -501,6 +501,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
                                    OLD.h_sno,OLD.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
                 total_new += sum_ice_enth(row,col,SIS.e_ice,SIS.e_sno,SIS.h_ice, \
                                    SIS.h_sno,SIS.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
+        MOM.err_temp = total_old - total_new
     elif data == 'salt':
         total_old = sum_ocean_salt(None,None,OLD.o_salt,OLD.h_oce,MOM,False)
         total_new = sum_ocean_salt(None,None,MOM.o_salt,MOM.h_oce,MOM,False)
@@ -512,6 +513,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
                 total_new += sum_ice_sal(row,col,SIS.ice_frac, \
                                            MOM.cell_area,SIS.h_ice,SIS.s_ice, \
                                            SIS.H_to_kg_m2,SIS.nk_ice)
+        MOM.err_salt = total_old - total_new
         
     elif data == 'mass':
         ice_mass_old = 0; sno_mass_old = 0; ice_mass_new = 0; sno_mass_new = 0
@@ -527,6 +529,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
         # Total
         total_old    = ice_mass_old + sno_mass_old + sea_mass_old
         total_new    = ice_mass_new + sno_mass_new + sea_mass_new
+        MOM.err_mass = total_old - total_new
         
     if math.isclose(total_old,total_new,abs_tol=err_tol): # Past 1e-14, choice of summing algorith begins to impact
         print(data+' is conserving within a tolerance of '+str(err_tol))
