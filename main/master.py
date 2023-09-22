@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 # Over-arching script for dynamic sea level & land sea mask tool designed for use
-# with the OM4 ocean and sea ice model, with optional additional input from the
-# ice sheet model PISM and solid Earth model VILMA.
+# with the OM4 ocean (MOM6) and sea ice (SIS2) model, with optional additional input from the
+# ice sheet model PISM and solid Earth model VILMA (or any comparable models that provide
+# grounded ice and relative sea level fields, respectively).
 # This script has been designed to use within a bash job script wrapper, but can
 # also be used standalone.
 # For more information on the tool as a whole, see the README

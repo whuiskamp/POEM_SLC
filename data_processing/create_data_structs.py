@@ -148,7 +148,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     H_to_m       = get_param(params_MOM,'H_TO_M');
     H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                   # Grid cell to mass conversion factor (1 by default)
     err_mass     = 0                                                     # Error in ocean mass after re-distribution between cells
-    err_temp     = 0                                                     # Error in ocean temp after re-distribution between cells 
+    err_enth     = 0                                                     # Error in ocean temp after re-distribution between cells 
     err_salt     = 0                                                     # Error in ocean salt after re-distribution between cells
         
     # Geography
@@ -269,7 +269,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.C_P            = C_P
     MOM.H_to_m         = H_to_m
     MOM.err_mass       = err_mass
-    MOM.err_temp       = err_temp
+    MOM.err_enth       = err_enth
     MOM.err_salt       = err_salt
     # Optional fields
     try:
