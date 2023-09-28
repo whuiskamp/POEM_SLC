@@ -11,6 +11,7 @@
 # was altered during this iteration of the SLC tool.
 
 import time
+import os.path
 from netCDF4 import Dataset as CDF
 import numpy as np
 
@@ -56,8 +57,8 @@ def write_rest(MOM,SIS,FLAGS):
 
     # Save new fields to netCDF
     # Write change mask to netCDF
-    if os.path.isfile(str(path)+'history/slc_diag.nc') == False: # Does the slc tool diagnostic file exist yet? If not, make one
-        slc = CDF(str(path)+'history/slc_diag.nc', 'w')
+    if os.path.isfile(str(FLAGS.w_dir)+'/../history/slc_diag.nc') == False: # Does the slc tool diagnostic file exist yet? If not, make one
+        slc = CDF(str(FLAGS.w_dir)+'/../history/slc_diag.nc', 'w')
         # Create dimensions for vars.
         slc.createDimension('lonh', MOM.lon.shape[1])
         slc.createDimension('lath', MOM.lat.shape[0])
@@ -74,6 +75,11 @@ def write_rest(MOM,SIS,FLAGS):
         slc.variables['lath'][:] = grid.variables['lath'][:]
         # slc.createVariable('time') #Not sure we want this?? Can we carry through a time var?
         ########## Define variables and fill data ##########
+        # Model time
+        slc.createVariable('time','f8',('time'));
+        slc.variables['time'].units = 'days'
+        slc.variables['time'].long_name = 'days since experiment start'
+        slc.variables['time'][:] = MOM.time[:]
         # Cell change mask
         slc.createVariable('chng_mask', 'f8', ('time','lath','lonh'))
         slc.variables['chng_mask'].units = 'none'
@@ -84,6 +90,11 @@ def write_rest(MOM,SIS,FLAGS):
         slc.variables['o_mask_new'].units = 'none'
         slc.variables['o_mask_new'].long_name = 'Updated ocean mask'
         slc.variables['o_mask_new'][:,:,:] = MOM.o_mask_new[:,:]
+        # New bathymetry
+        slc.createVariable('topog','f8',('time','lath','lonh'))
+        slc.variables['topog'].units = 'm'
+        slc.variables['topog'].long_name = 'Ocean bathymetry through time'
+        slc.variables['topog'][:,:,:] = MOM.depth_new[:,:]
         # Conservation errors
         # Enthalpy
         slc.createVariable('err_enth','f8','time')
@@ -129,11 +140,19 @@ def write_rest(MOM,SIS,FLAGS):
     Omask.variables['mask'][:,:].data = MOM.o_mask_new
 
     # Update MOM6 restart
-    MOM6_rest.variables[''] 
-
+    MOM6_rest.variables['Temp'][0,:,:,:] = MOM.o_temp
+    MOM6_rest.variables['Salt'][0,:,:,:] = MOM.o_salt
+    MOM6_rest.variables['h'][0,:,:,:]    = MOM.h_oce
+    MOM6_rest.variables['ave_ssh'][0,:,:] = MOM.ave_eta
+    MOM6_rest.variables['sfc'][0,:,:] = MOM.eta
+    MOM6_rest.variables['uh'] = MOM.uh
+    MOM6_rest.variables['vh'] = MOM.vh
+    MOM6_rest.variables['h2'] = MOM.h2
+    
     # Update SIS2 restart
-    SIS2_rest.variables
-            
+    SIS2_rest.variables['rough_mom'] = SIS.rough_mom
+    SIS2_rest.variables['rough_heat'] = SIS.rough_heat
+    SIS2_rest.variables['rough_moist'] = SIS.rough_moist
             
             
             
