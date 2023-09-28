@@ -89,6 +89,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     TKE_turb     = MOM6_rest.variables['TKE_turb']                       # Turbulent kinetic energy per unit mass at interfaces (m2 s-1)
     Kv_shear_Bu  = MOM6_rest.variables['Kv_shear_Bu']                    # Shear-driven turbulent viscosity at vertex interfaces (m2 s-1)
     Kv_slow      = MOM6_rest.variables['Kv_slow']                        # Vertical turbulent viscosity at interfaces due to slow processes (m2 s-1)
+    time_mom     = MOM6_rest.variables['Time']                           # Model time in days since simulation start (days)
     
     ######################### Optional ocean vars ########################
     # This section should include all optional tracers such as biogeochemical fields
@@ -271,6 +272,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.err_mass       = err_mass
     MOM.err_enth       = err_enth
     MOM.err_salt       = err_salt
+    MOM.time           = time_mom
     # Optional fields
     try:
         MOM.age        = age
