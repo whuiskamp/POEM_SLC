@@ -37,39 +37,6 @@ def regrid_rest(path):
 		print('PISM restart file not found.')
 	
 
-    # if VILMA_couple:
-    # 	sp.run(['cp', str(path)+'../INPUT/topog.nc', str(path)+'topog_new.nc'])
-    # 	master_topo = CDF(str(path)+'master_topo.nc','r',) # Import master topog. on MOM grid
-    # 	VILMA_data  = CDF(str(path)+'vilma2mom.nc','r',) # Import VILMA restart on MOM grid
-    # 	topo_m = master_topo.variables['depth'][:,:]; master_topo.close()  
-    # 	slr    = VILMA_data.variables['slr'][-1,:,:]; VILMA_data.close() # Note that VILMA appends restarts, so we always select the most
-    # 	# recent value
-    # 	depth_new = topo_m - slr
-
-    # 	topog_new = CDF(str(path)+'topog_new.nc','r+')   # Import what will be the new topogrpahy file
-    # 	depth     = topog_new.variables['depth'][:,:]
-    # 	depth[:,:]= depth_new
-    # 	topog_new.close()
-
-    # else:
-    # 	sp.run(['cp', str(path)+'INPUT/topog.nc', str(path)+'topog_new.nc']) # Doesn't need to be updated, just copy the file as-is.
-
-    # This all needs to be moved to prep_restarts.py
-	# Finally, we create a .nc file which tracks the history of the model topography & bathymetry at each coupling time-step
-    # This file is updated at the end of the SLC operations (changes due to column thickness and ice sheets must be accounted for)
-    if os.path.isfile(str(path)+'/../history/topog_history.nc') == False: # At the start of a run, we need to creat this file as it doesn't exist yet
-    	topog = CDF(str(path)+'/../INPUT/topog.nc','r');                  # The current topog file will represent the first time-step
-    	depth = topog.variables['depth'][:,:]; topog.close()
-
-    	hist  = CDF.Dataset('topog_history.nc', 'w')				  	  # Create the topog_history file and add metadata
-		hist.createDimension('nx', depth.shape[1])
-		hist.createDimension('ny', depth.shape[0])
-		hist.createDimension('time', None)
-
-		hist.createVariable('topog',f8,('time','ny','nx'))            
-		hist.topog[0,:,:] = depth[:,:]
-		hist.close()
-
 
     	
 
