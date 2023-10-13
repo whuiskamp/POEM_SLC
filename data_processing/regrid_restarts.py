@@ -5,18 +5,14 @@
 # Note that VILMA writes consecutive time-slices to the same restart file, so when extracting the field for the current time-step, 
 # we always access the most recent slice.
 
-import time
 import os.path
-from netCDF4 import Dataset as CDF
-import glob
 import subprocess as sp
 
 def regrid_rest(path):
-	# This function reads in the experiment path and regrids the PISM (pism_res.nc) and, when necessary, the VILMA restart (rsl.nc) 
+	# This reads in the experiment path and regrids the PISM (pism_res.nc) and, when necessary, the VILMA restart (rsl.nc) 
 	# file to the ocean grid. Regridding is done using cdo and employs second-order conservative method. 
 	# This script requires a master topography file to be stored in the 'path' directory (typically named SLC). 
-	# It should include terrestrial topography as well as bathymetry as it exists at the beginning of the simulation.
-	# Next, if this is a VILMA coupling step, new topography field is calculated and saved to netCDF
+	# 
 	#  In: path 		- the path of the experiment directory's coupling data folder
 	# Out: vilma2mom.nc - VILMA restart file on ocean grid
 	#	   pism2mom.nc  - PISM restart file on ocean grid
@@ -26,7 +22,6 @@ def regrid_rest(path):
 	if os.path.isfile(str(path)+'rsl.nc'):
 		print('Relative sea level file found. Regridding to ocean grid ...')
 		sp.run(['cdo', 'remapcon2,'+str(path)+'MOM.res.nc', str(path)+'rsl.nc', str(path)+'vilma2mom.nc'])
-		VILMA_couple = True
 	else:
 		print('Relative sea level file not found. Proceeding to ice sheet input ...')
     # Read PISM restart file    

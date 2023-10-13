@@ -344,7 +344,7 @@ def fix_iso_cells(iso_mask,MOM):
     # Out: chng_mask - Updated change mask.
     #         o_mask - Updated ocean mask
     
-    # If cells are less than 5m in depth, fill them in
+    # If cells are less than 5m (default) in depth, fill them in
     tmp = MOM.h_sum[iso_mask==1] 
     if np.mean(tmp) < 5:
         MOM.chng_mask[iso_mask==1] = -1

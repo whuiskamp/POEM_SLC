@@ -70,6 +70,14 @@ if __name__ == "__main__":
                         help="increase output verbosity")
     args = parser.parse_args()
 
+########### Settings ###########
+min_depth = _ # The depth at which a water column is made land
+new_depth = _ # The depth of a newly initialised ocean cell
+iso_depth = _ # The depth at which isolated cells (essentially inland ocean) are made land
+iso_size  = _ # The number of isolated cells (in a group) below which, these cells are made land
+def_halo  = _ # The default halo size when redistributing mass/tracers
+ 
+
 ########### Setup ###########
     t_master_start = t.time()
 
@@ -109,26 +117,6 @@ if __name__ == "__main__":
         prep_fields(MOM,SIS)
         # Write out new restart files
         write_rest(MOM,SIS,FLAGS)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
