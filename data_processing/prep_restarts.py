@@ -50,15 +50,15 @@ def prep_fields(MOM,SIS):
     # MOM.v2       # Auxiliary meridional velocity (m s-1)
 
 
-def write_rest(MOM,SIS,FLAGS):
+def write_rest(MOM,SIS,OPTS):
     # Load new restart files
     # Out: Restart files ice_model.res.nc and MOM.res.nc; bathymetry file topog
     #    Change all ocean/ ice fields that need to be changed
 
     # Save new fields to netCDF
     # Write change mask to netCDF
-    if os.path.isfile(str(FLAGS.w_dir)+'/../history/slc_diag.nc') == False: # Does the slc tool diagnostic file exist yet? If not, make one
-        slc = CDF(str(FLAGS.w_dir)+'/../history/slc_diag.nc', 'w')
+    if os.path.isfile(str(OPTS.w_dir)+'/../history/slc_diag.nc') == False: # Does the slc tool diagnostic file exist yet? If not, make one
+        slc = CDF(str(OPTS.w_dir)+'/../history/slc_diag.nc', 'w')
         # Create dimensions for vars.
         slc.createDimension('lonh', MOM.lon.shape[1])
         slc.createDimension('lath', MOM.lat.shape[0])

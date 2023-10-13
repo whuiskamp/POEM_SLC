@@ -539,7 +539,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
     return
 ################################# Main Code ###################################
     
-def redist_vals(MOM,SIS,OLD,FLAGS):
+def redist_vals(MOM,SIS,OLD,OPTS):
 # This function uses the chng_mask variable to either initialise or remove 
 # ocean cells from the mondel domain. The process is currently designed to 
 # conservatively redistribute mass and tracers of energy (temperature) and
@@ -603,7 +603,7 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
                 # Change NaN vals in T and S fields back to 0's
                 MOM.o_temp[np.isnan(MOM.o_temp)] = 0
                 MOM.o_salt[np.isnan(MOM.o_salt)] = 0
-    if FLAGS.verbose:
+    if OPTS.verbose:
         print('Checking for conservation of mass...')
         chk_conserv(OLD,SIS,MOM,'mass')
         print('Checking for conservation of energy...')
@@ -614,7 +614,7 @@ def redist_vals(MOM,SIS,OLD,FLAGS):
 #              '\n Error in mass   = '+str(err_mass) + \
 #              '\n Error in energy = '+str(err_T) +\
 #              '\n Error in salt   = '+str(err_S))
-    FLAGS.t_redist = time.time() - t_start
+    OPTS.t_redist = time.time() - t_start
     return
     
     

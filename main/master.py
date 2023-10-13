@@ -101,22 +101,22 @@ def_halo  = _ # The default halo size when redistributing mass/tracers
         t_regr_end = t.time()
 
 ########### Read in model files and create data structures ###########
-    MOM,SIS,OLD,ICE,FLAGS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
+    MOM,SIS,OLD,ICE,OPTS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
 
 ########### Check if any cells need to change from land-ocean & vice versa ###########
-    check_water_col(MOM,ICE,FLAGS)
-    if (FLAGS.cont == False) and (FLAGS.bathy_chg == False):
+    check_water_col(MOM,ICE,OPTS)
+    if (OPTS.cont == False) and (OPTS.bathy_chg == False):
         print("No cells are changing, copy new input files and restart model")
         pass
-    elif (FLAGS.cont == False) and (FLAGS.bathy_chg == True):
+    elif (OPTS.cont == False) and (OPTS.bathy_chg == True):
         update_bathy(MOM)
     else:
         # There are cells that need altering, redistribute mass and tracers
-        redist_vals(MOM,SIS,OLD,FLAGS)
+        redist_vals(MOM,SIS,OLD,OPTS)
         # Now we need to update secondary fields in the restart files
         prep_fields(MOM,SIS)
         # Write out new restart files
-        write_rest(MOM,SIS,FLAGS)
+        write_rest(MOM,SIS,OPTS)
 
 
 

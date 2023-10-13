@@ -21,7 +21,7 @@ from shared_funcs import get_halo
 #o_mask[18,9] = 0; o_mask[17,10:16] = 0; o_mask[16,16] = 0; o_mask[16,18] = 0;
 #o_mask[15,17] = 0;
 
-def ID_iso_cells(row,col,turn1,MOM,FLAGS):
+def ID_iso_cells(row,col,turn1,MOM,OPTS):
     # This function consists of a square contour-tracing algorithm 
     # (https://tinyurl.com/qrlo5pm) that will identify an isolated group of 
     # ocean cells and return them as a masked array. The algorithm begins from 
@@ -93,7 +93,7 @@ def ID_iso_cells(row,col,turn1,MOM,FLAGS):
     if count == stop: 
         return
     elif 1 in iso_mask:
-        if FLAGS.verbose:
+        if OPTS.verbose:
             print('Isolated cells found in vicinity of row = '+str(row)+', col = '+str(col))
         return iso_mask
     else:
@@ -358,7 +358,7 @@ def fix_iso_cells(iso_mask,MOM):
     return
 
 ################################# Main Code ################################### 
-def check_cells(MOM,FLAGS):
+def check_cells(MOM,OPTS):
     # This function checks the ocean mask for cells or groups of cells isolated
     # from the ocean. For the tracing algorithm to function, we must first 
     # eliminate individual isolated cells. Input to this function is assumed to be
@@ -381,9 +381,9 @@ def check_cells(MOM,FLAGS):
                 # If none are found, we need to check if multiple cells have 
                 # become isolated. For algorithm to work, we must search in 
                 # both 'directions'. Try one, then the other.
-                iso_mask = ID_iso_cells(i,j,'right',MOM,FLAGS)
+                iso_mask = ID_iso_cells(i,j,'right',MOM,OPTS)
                 if iso_mask is None:
-                    iso_mask = ID_iso_cells(i,j,'left',MOM,FLAGS)
+                    iso_mask = ID_iso_cells(i,j,'left',MOM,OPTS)
                 # If we have isolated cells, determine what to do with them
                 if iso_mask is not None:
                     # Firstly, identify any isolated cells the tracing algoritm may have missed

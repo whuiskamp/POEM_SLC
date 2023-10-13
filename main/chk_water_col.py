@@ -31,7 +31,7 @@ from chk_cells import check_cells
 import matplotlib.pyplot as plt
 
 ################################# Main Code ###################################
-def check_water_col(MOM,ICE,FLAGS):
+def check_water_col(MOM,ICE,OPTS):
     # Before checking individual cells, check if an an adjustment needs to be made for 
     # global means sea level. If so, re-scale the topography and SSH fields.
     glob_ave_ssh = np.mean(MOM.ave_ssh)
@@ -39,12 +39,12 @@ def check_water_col(MOM,ICE,FLAGS):
         MOM.depth_new += 1
         MOM.eta       -= 1
         MOM.ave_eta   -= 1  
-        FLAGS.bathy_chg = True
+        OPTS.bathy_chg = True
     elif glob_ave_ssh <= -1:
         MOM.depth_new -= 1
         MOM.eta       += 1
         MOM.ave_eta   += 1
-        FLAGS.bathy_chg = True
+        OPTS.bathy_chg = True
     
     # Check 1: Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
@@ -80,11 +80,11 @@ def check_water_col(MOM,ICE,FLAGS):
     # cells or inland seas, if so, update o_mask and chng_mask where required
     
     if np.any(MOM.chng_mask): # We only need to perform this test if cells change
-        check_cells(MOM,FLAGS)               
+        check_cells(MOM,OPTS)               
         cells = np.count_nonzero(MOM.chng_mask)
-        if FLAGS.verbose:
+        if OPTS.verbose:
             print('Number of cells changing this time-step is = '+ str(cells))
-        FLAGS.cont = True
+        OPTS.cont = True
         # Print figures showing new land mask and which cells are changing
         # Create dummy variable where changing cells are added to an o_mask
         dummy = cp.deepcopy(MOM.o_mask)
@@ -98,13 +98,13 @@ def check_water_col(MOM,ICE,FLAGS):
         # Add lines to make cells clearer
         ax.grid(which='minor', color='w', linewidth=0.5)
         #ax.set_frame_on(False)
-        plt.savefig(FLAGS.w_dir + 'chng_mask.pdf', dpi=150)
+        plt.savefig(OPTS.w_dir + 'chng_mask.pdf', dpi=150)
         t_end = time.time()
-        FLAGS.t_chk_cells = t_end - t_start
+        OPTS.t_chk_cells = t_end - t_start
     else:
         # If no cells require changing, return a flag indicating that the rest
         # of the tool is not required for this coupling step
-        FLAGS.cont = False
+        OPTS.cont = False
         t_end = time.time()
-        FLAGS.t_chk_cells = t_end - t_start
+        OPTS.t_chk_cells = t_end - t_start
     

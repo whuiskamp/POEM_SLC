@@ -19,8 +19,8 @@ sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid
 from shared_funcs import get_param
 from shared_funcs import calc_coast
 
-# Class containing option flags
-class option_flags:
+# Class containing options/ settings
+class options:
     pass
 # This class contains all variables from the MOM6 restart file
 class MOM_vars:
@@ -217,12 +217,12 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     
 ###############################################################################    
     # Initialise options class
-    FLAGS = option_flags()
-    FLAGS.verbose      = verbose
-    FLAGS.ICE          = ICE
-    FLAGS.EARTH        = EARTH
-    FLAGS.w_dir        = work_dir
-    FLAGS.bathy_chg    = bathy_chg
+    OPTS = options()
+    OPTS.verbose      = verbose
+    OPTS.ICE          = ICE
+    OPTS.EARTH        = EARTH
+    OPTS.w_dir        = work_dir
+    OPTS.bathy_chg    = bathy_chg
 
     # Initialise ocean data strucure
     MOM = MOM_vars()
@@ -329,7 +329,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     OLD.ice_frac       = ice_frac_old
     
     # Time taken
-    FLAGS.t_data = time.time() - t_start
+    OPTS.t_data = time.time() - t_start
     
-    return MOM, SIS, OLD, ICE, FLAGS 
+    return MOM, SIS, OLD, ICE, OPTS 
     
