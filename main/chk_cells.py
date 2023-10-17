@@ -332,7 +332,7 @@ def chk_sides(row,col,iso_mask,MOM):
         else: 
             return
 
-def fix_iso_cells(iso_mask,MOM):
+def fix_iso_cells(iso_mask,MOM,OPTS):
     # This function takes a group of isolated ocean cells, examines their 
     # collective properties and determines whether or not to leave them alone 
     # or fill them in.
@@ -344,13 +344,13 @@ def fix_iso_cells(iso_mask,MOM):
     # Out: chng_mask - Updated change mask.
     #         o_mask - Updated ocean mask
     
-    # If cells are less than 5m (default) in depth, fill them in
+    # If cells are less than 5m (default) in depth on average, fill them in
     tmp = MOM.h_sum[iso_mask==1] 
-    if np.mean(tmp) < 5:
+    if np.mean(tmp) < OPTS.iso_depth:
         MOM.chng_mask[iso_mask==1] = -1
-    # If the group consists of 3 or fewer cells, fill it in
+    # If the group consists of 3 (default) or fewer cells, fill it in
     size = np.sum(iso_mask)
-    if size <= 3:
+    if size <= OPTS.iso_size:
         MOM.chng_mask[iso_mask==1] = -1
     
     # If group consists of 4 or more cells and is deeper than 5m, we leave it be
@@ -397,7 +397,7 @@ def check_cells(MOM,OPTS):
                     # Otherwise, determine what, if anything, to do with our 
                     # isolated friends
                     else:
-                        fix_iso_cells(iso_mask,MOM)
+                        fix_iso_cells(iso_mask,MOM,OPTS)
     return    
         
         
