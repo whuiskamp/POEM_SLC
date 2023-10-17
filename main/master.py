@@ -71,11 +71,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 ########### Settings ###########
-min_depth = _ # The depth at which a water column is made land
-new_depth = _ # The depth of a newly initialised ocean cell
-iso_depth = _ # The depth at which isolated cells (essentially inland ocean) are made land
-iso_size  = _ # The number of isolated cells (in a group) below which, these cells are made land
-def_halo  = _ # The default halo size when redistributing mass/tracers
+min_depth = 5  # The depth at which a water column is made land
+min_thk   = 2  # The minimum water column thickness allowable before a cell is made land
+new_depth = 5  # The depth of a newly initialised ocean cell
+iso_depth = 10 # The depth at which isolated cells (essentially inland ocean) are made land
+iso_size  = 5  # The number of isolated cells (in a group) below which, these cells are made land
+def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined as a factor of the target cell area.
+               # E.g., a value of 5 would mean that the halo must be >= 5 times the area of the target cell. 
  
 
 ########### Setup ###########
@@ -102,6 +104,12 @@ def_halo  = _ # The default halo size when redistributing mass/tracers
 
 ########### Read in model files and create data structures ###########
     MOM,SIS,OLD,ICE,OPTS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
+    # Apply settings
+    OPTS.min_depth = min_depth
+    OPTS.new_depth = new_depth
+    OPTS.iso_depth = iso_depth
+    OPTS.iso_size  = iso_size
+    OPTS.def_halo  = def_halo
 
 ########### Check if any cells need to change from land-ocean & vice versa ###########
     check_water_col(MOM,ICE,OPTS)
@@ -117,7 +125,3 @@ def_halo  = _ # The default halo size when redistributing mass/tracers
         prep_fields(MOM,SIS)
         # Write out new restart files
         write_rest(MOM,SIS,OPTS)
-
-
-
-

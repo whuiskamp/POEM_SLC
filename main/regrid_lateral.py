@@ -564,7 +564,7 @@ def redist_vals(MOM,SIS,OLD,OPTS):
     
     t_start = time.time()
     # Variable pre-processing
-    scale_fac    = 20                                             # A scaling factor determining how many times the surface are of the target cell is required for redist.  
+    scale_fac    = OPTS.def_halo                                  # A scaling factor determining how many times the surface are of the target cell is required for redist.  
     tmp          = cp.deepcopy(MOM.h_oce);                        # Dummy variable
     tmp          = np.where(tmp>0.01, tmp, np.nan);               # While all layers always exist, we only want them if they have 
     MOM.h_lvls   = np.nansum(tmp/tmp,axis=0).astype(int); del tmp # significant mass (ie: non-0 layers, defined has having h > 0.001)

@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 ################################# Main Code ###################################
 def check_water_col(MOM,ICE,OPTS):
     # Before checking individual cells, check if an an adjustment needs to be made for 
-    # global means sea level. If so, re-scale the topography and SSH fields.
+    # global mean sea level. If so, re-scale the topography and SSH fields.
     glob_ave_ssh = np.mean(MOM.ave_ssh)
     if glob_ave_ssh >= 1:
         MOM.depth_new += 1
@@ -48,10 +48,12 @@ def check_water_col(MOM,ICE,OPTS):
     
     # Check 1: Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
+    # Remember, in PISM 1 = Ice free bedrock, 2 = Grounded ice, 3 = Floating ice shelf
+    # 4 = Open ocean.
     t_start = time.time()
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if (ICE.I_mask[i,j] >= 0.7 and MOM.o_mask[i,j] > 0) or MOM.depth_new[i,j] < 5: 
+            if (ICE.I_mask[i,j] == 2 and MOM.o_mask[i,j] > 0) or MOM.depth_new[i,j] < OPTS.min_depth:
                 MOM.o_mask_new[i,j] = 0;
                 MOM.depth_new[i,j]  = 0; 
                 MOM.chng_mask[i,j]  = -1;
@@ -59,7 +61,7 @@ def check_water_col(MOM,ICE,OPTS):
     # Check 2: Has a change in SSH created new land?
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if  MOM.h_sum[i,j] < 2 and MOM.o_mask[i,j] > 0:
+            if  MOM.h_sum[i,j] < OPTS.min_thk and MOM.o_mask[i,j] > 0:
                 MOM.o_mask_new[i,j] = 0;
                 MOM.depth_new[i,j]  = 0;
                 MOM.chng_mask[i,j]  = -1;
@@ -67,9 +69,9 @@ def check_water_col(MOM,ICE,OPTS):
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if ICE.I_mask[i,j] <= 0.3 and MOM.o_mask[i,j] == 0 and MOM.coast == 1 and MOM.depth_new[i,j] >= 5:
+            if ICE.I_mask[i,j] == 4 and MOM.o_mask[i,j] == 0 and MOM.coast == 1 and MOM.depth_new[i,j] >= OPTS.new_depth:
                 eta_mean = halo_eta(MOM.h_sum,i,j);
-                if eta_mean >= 5: 
+                if eta_mean >= OPTS.new_depth: 
                     MOM.chng_mask[i,j]  = 1;
                     MOM.o_mask_new[i,j] = 1;
     
