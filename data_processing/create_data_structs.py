@@ -11,7 +11,7 @@
 from netCDF4 import Dataset as CDF
 import numpy as np
 import copy as cp
-import time
+import time as t
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
 from shared_funcs import get_param
@@ -38,8 +38,6 @@ class old_vars:
     pass         
 
 def init_data_structs(work_dir,ICE,EARTH,verbose):
-    t_start = time.time()  # Record time taken to run this function
-    
     # Identidy restart, parameter, and gridspec files
     old_bathy  = CDF(work_dir + '../INPUT/topog.nc','r')
     new_bathy  = CDF(work_dir + '/topog.nc','r')
@@ -325,9 +323,6 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     OLD.h_ice          = h_ice_old
     OLD.h_sno          = h_sno_old
     OLD.ice_frac       = ice_frac_old
-    
-    # Time taken
-    OPTS.t_data = time.time() - t_start
-    
+      
     return MOM, SIS, OLD, ICE, OPTS 
     

@@ -71,13 +71,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 ########### Settings ###########
-min_depth = 5  # The depth at which a water column is made land
-min_thk   = 2  # The minimum water column thickness allowable before a cell is made land
-new_depth = 5  # The depth of a newly initialised ocean cell
-iso_depth = 10 # The depth at which isolated cells (essentially inland ocean) are made land
-iso_size  = 5  # The number of isolated cells (in a group) below which, these cells are made land
-def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined as a factor of the target cell area.
-               # E.g., a value of 5 would mean that the halo must be >= 5 times the area of the target cell. 
+    min_depth = 5  # The depth at which a water column is made land
+    min_thk   = 2  # The minimum water column thickness allowable before a cell is made land
+    new_depth = 5  # The depth of a newly initialised ocean cell
+    iso_depth = 10 # The depth at which isolated cells (essentially inland ocean) are made land
+    iso_size  = 5  # The number of isolated cells (in a group) below which, these cells are made land
+    def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined as a factor of the target cell area.
+                   # E.g., a value of 5 would mean that the halo must be >= 5 times the area of the target cell. 
  
 
 ########### Setup ###########
@@ -95,12 +95,14 @@ def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined
         print()
 
 ########### Regridding PISM/VILMA restarts (Optional) ###########
+    t_data_start = t.time()
+
     if args.PISM or args.VILMA:
         t_regr_start = t.time()
         if args.verbose:    
             print("Regridding inputs files from PISM/VILMA...")
         regrid_rest(args.path)
-        t_regr_end = t.time()
+        t_regr = t.time() - t_regr_start
 
 ########### Read in model files and create data structures ###########
     MOM,SIS,OLD,ICE,OPTS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
@@ -111,17 +113,34 @@ def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined
     OPTS.iso_size  = iso_size
     OPTS.def_halo  = def_halo
 
+    t_data = t.time()-t_data_start
 ########### Check if any cells need to change from land-ocean & vice versa ###########
+    t_check_start = t.time()
     check_water_col(MOM,ICE,OPTS)
+    t_check = t.time()-t_check_start
     if (OPTS.cont == False) and (OPTS.bathy_chg == False):
         print("No cells are changing, copy new input files and restart model")
         pass
     elif (OPTS.cont == False) and (OPTS.bathy_chg == True):
+        t_change_start = t.time()
         update_bathy(MOM)
     else:
+        t_change_start = t.time()
         # There are cells that need altering, redistribute mass and tracers
         redist_vals(MOM,SIS,OLD,OPTS)
         # Now we need to update secondary fields in the restart files
         prep_fields(MOM,SIS)
         # Write out new restart files
         write_rest(MOM,SIS,OPTS)
+        t_change = t.time() - t_change_start
+        t_total = t.time() - t_master_start
+    
+    # Optional performance information
+    if args.verbose:
+        print("SLC tool finished. Time taken for each operation:")
+        print("Pre-processing: "+str(t_regr)+" secs")
+        print("Data importing (total): "+str(t_data)+" secs")
+        print("Check cells: "+str(t_check)+" secs")
+        if t_change in locals():
+            print("Updating restarts: "+str(t_change)+" secs")
+        print("Total: "+str(t_total)+" secs")
