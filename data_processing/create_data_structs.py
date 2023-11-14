@@ -13,9 +13,7 @@ import numpy as np
 import copy as cp
 import time
 import sys
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/2_check_ocean_cells')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/4_ocean_regrid_lateral')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
 from shared_funcs import get_param
 from shared_funcs import calc_coast
 
