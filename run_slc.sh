@@ -74,7 +74,6 @@ slc_run(){
         --iteration RUN
         --PISM      DO_PISM
         --VILMA     DO_VILMA
-        --time
         --verbose
 }
 

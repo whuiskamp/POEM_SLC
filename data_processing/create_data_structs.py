@@ -162,9 +162,9 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     grid_x     = lon.shape[1];                                           # Size of ocean longitude domain 
     grid_y     = lat.shape[0];                                           # Size of ocean latitude domain
     grid_z     = int(get_param(params_MOM,'NK'));                        # Number of vertical levels in ocean
-    cell_area  = grid.variables['Ah'][:,:];                              # Area of h (tracer) cells
+    cell_area  = grid.variables['area_t'][:,:];                              # Area of h (tracer) cells
     nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
-    grid_dz    = vgrid.variables['dz'][:];                               # Default vertical grid spacing (m) (at the moment this is not used)
+    # grid_dz    = vgrid.variables['dz'][:];                               # Default vertical grid spacing (m) (at the moment this is not used) - update to MOM6 has removed this var. from this file.
     
     if verbose:
         print('Grid vars successfully extracted')

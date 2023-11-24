@@ -39,7 +39,7 @@ __status__     = "Production"
 if __name__ == "__main__":
 
 ########### Argument parsing ###########
-	parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
                 description=
                 "Identifies cells that should change from ocean to land or vice versa \
                  and changes these accordingly while conserving mass and tracers",
@@ -57,15 +57,13 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--iteration', action="store", dest="iteration",
                         required=True, 
                         help="The current coupling interation")
-    parser.add_argument('--PISM', action="store", dest="store",
+    parser.add_argument('--PISM', action="store", dest="PISM",
                         required=True, 
                         help="Check for changes in land ice extent?")
-    parser.add_argument('--VILMA', action="store", dest="store",
-                        required=True, nargs='+',
+    parser.add_argument('--VILMA', action="store", dest="VILMA",
+                        required=True,
                         help="list of variable names not to copy to output \
                                 file")
-    parser.add_argument('-t', '--time', action="store_true", 
-                        help="print script timings")
     parser.add_argument('-v', '--verbose', action="store_true", 
                         help="increase output verbosity")
     args = parser.parse_args()
@@ -79,7 +77,6 @@ if __name__ == "__main__":
     def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined as a factor of the target cell area.
                    # E.g., a value of 5 would mean that the halo must be >= 5 times the area of the target cell. 
  
-
 ########### Setup ###########
     t_master_start = t.time()
 
