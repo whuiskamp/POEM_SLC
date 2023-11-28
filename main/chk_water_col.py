@@ -23,7 +23,6 @@
 import numpy as np
 import sys
 import copy as cp
-import time
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
 from shared_funcs import halo_eta
@@ -50,7 +49,6 @@ def check_water_col(MOM,ICE,OPTS):
     # topography height? Update mask & change mask
     # Remember, in PISM 1 = Ice free bedrock, 2 = Grounded ice, 3 = Floating ice shelf
     # 4 = Open ocean.
-    t_start = time.time()
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if (ICE.I_mask[i,j] == 2 and MOM.o_mask[i,j] > 0) or MOM.depth_new[i,j] < OPTS.min_depth:
@@ -101,12 +99,8 @@ def check_water_col(MOM,ICE,OPTS):
         ax.grid(which='minor', color='w', linewidth=0.5)
         #ax.set_frame_on(False)
         plt.savefig(OPTS.w_dir + 'chng_mask.pdf', dpi=150)
-        t_end = time.time()
-        OPTS.t_chk_cells = t_end - t_start
     else:
         # If no cells require changing, return a flag indicating that the rest
         # of the tool is not required for this coupling step
-        OPTS.cont = False
-        t_end = time.time()
-        OPTS.t_chk_cells = t_end - t_start
+        OPTS.cont = False      
     

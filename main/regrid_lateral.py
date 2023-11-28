@@ -610,11 +610,10 @@ def redist_vals(MOM,SIS,OLD,OPTS):
         chk_conserv(OLD,SIS,MOM,'temp')
         print('Checking for conservation of salt...')
         chk_conserv(OLD,SIS,MOM,'salt')
-#        print('Redistribution of mass and tracers complete.' \
-#              '\n Error in mass   = '+str(err_mass) + \
-#              '\n Error in energy = '+str(err_T) +\
-#              '\n Error in salt   = '+str(err_S))
-    OPTS.t_redist = time.time() - t_start
+        print('Redistribution of mass and tracers complete.' \
+              '\n Error in mass   = '+str(err_mass) + \
+              '\n Error in energy = '+str(err_T) +\
+              '\n Error in salt   = '+str(err_S))
     return
     
     
