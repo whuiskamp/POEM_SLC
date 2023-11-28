@@ -23,23 +23,24 @@
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
 
 # ----------- Define paths ----------
-diag_dir      = history
-SLC_work      = $PWD/SLC
-SLR_tool      = /p/projects/climber3/huiskamp/POEM/work/slr_tool
-runoff_regrid = /p/projects/climber3/huiskamp/regrid_runoff # Maybe incorporate this inside the tool??
+diag_dir=history
+SLC_work=$PWD/SLC
+SLR_tool=/p/projects/climber3/huiskamp/POEM/work/slr_tool
+runoff_regrid=/p/projects/climber3/huiskamp/regrid_runoff # Maybe incorporate this inside the tool??
 
 # ----------- Run parameters ----------
-START          = 1  # For a new run, start at 1. For a restart, set this to previous end + 1 (duh..)
+# Always use leading 0's for START, CPL_TIMESTEP and CPL_ITERATIONS
+START=0001  # For a new run, start at 1. For a restart, set this to previous end + 1 (duh..)
 
-CPL_TIMESTEP   = 10 # Coupling time-step in years (must be >=1)
-CPL_ITERATIONS = 50 # Number of coupling iterations to simulate (must be >=1)
+CPL_TIMESTEP=0010 # Coupling time-step in years (must be >=1)
+CPL_ITERATIONS=0050 # Number of coupling iterations to simulate (must be >=1)
 
-if [ $START != 1 ]; then
-    CPL_ITERATIONS += $START # We want numbering consistency for a run upon restart. 
+if [$START!=1]; then
+    CPL_ITERATIONS+=$START # We want numbering consistency for a run upon restart. 
 fi
 
-DO_PISM        = False  # Will this simulation include external forcing from PISM
-DO_VILMA       = False  # Will this simulation include external forcing from VILMA
+DO_PISM=False  # Will this simulation include external forcing from PISM
+DO_VILMA=False  # Will this simulation include external forcing from VILMA
 
 mkdir -p $SLC_work
 
@@ -81,16 +82,15 @@ slc_run(){
 # ----------- Run the model ----------
 
 
-for RUN in `seq 1 $CPL_ITERATIONS`
+for RUN in `seq $START $CPL_ITERATIONS`
 do
     SIM_START_TIME=$(echo "$CPL_TIMESTEP * ($RUN -1)" | bc )
     SIM_END_TIME=$(echo "$CPL_TIMESTEP * $RUN" | bc )
     echo
     echo ' >> CPL_ITERATION=' $RUN
-    time_tot = 0
     # Run poem for coupling timestep
     OM4_run
-    if [$RUN == 1]; then
+    if [$RUN==1]; then
        cp ${diag_dir}/MOM6_run_${RUN}/{MOM_parameter_doc.all,SIS_parameter_doc.all} $SLC_work
        cp ${diag_dir}/MOM6_run_${RUN}/*.ocean_static.nc $SLC_work/ocean_static.nc
     
