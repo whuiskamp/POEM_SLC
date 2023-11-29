@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 #
 # This file is for running MOM6-SIS2 in a standalone configuration with a changing land-sea mask
 # due to changes in ocean mass or externally forced changes in bathymetry depth.
@@ -29,13 +29,12 @@ SLR_tool=/p/projects/climber3/huiskamp/POEM/work/slr_tool
 runoff_regrid=/p/projects/climber3/huiskamp/regrid_runoff # Maybe incorporate this inside the tool??
 
 # ----------- Run parameters ----------
-# Always use leading 0's for START, CPL_TIMESTEP and CPL_ITERATIONS
-START=0001  # For a new run, start at 1. For a restart, set this to previous end + 1 (duh..)
+START=1  # For a new run, start at 1. For a restart, set this to previous end + 1 (duh..)
 
-CPL_TIMESTEP=0010 # Coupling time-step in years (must be >=1)
-CPL_ITERATIONS=0050 # Number of coupling iterations to simulate (must be >=1)
+CPL_TIMESTEP=10 # Coupling time-step in years (must be >=1)
+CPL_ITERATIONS=50 # Number of coupling iterations to simulate (must be >=1)
 
-if [$START!=1]; then
+if [ $START != 1 ]; then
     CPL_ITERATIONS+=$START # We want numbering consistency for a run upon restart. 
 fi
 
@@ -48,7 +47,7 @@ OM4_run(){
     # Run MOM6-SIS2
     echo "Running MOM6-SIS2..."
     srun --propagate=ALL ./MOM6_SIS2 > MOM_log 2>&1
-    mkdir -p "${diag_dir}/MOM6_run_${RUN}"
+    mkdir -p "${diag_dir}/MOM6_run_${RUN_long}"
     
     # Copy param. files to working dir...
     cp -a MOM_parameter_doc.all SIS_parameter_doc.all $SLC_work
@@ -56,13 +55,13 @@ OM4_run(){
     # Move diagnostics and log files to history directory
     mv *.nc sbatch.62* MOM_parameter_doc* time_stamp.out CPU_stats ocean.stats logfile* MOM_log available_diags.* \
     V_velocity_truncations U_velocity_truncations SIS_parameter_doc.layout SIS.available_diags SIS_fast.available_diags \
-    SIS_parameter_doc.debugging SIS_parameter_doc.short SIS_parameter_doc.all MOM_IC.nc seaice.stats "${diag_dir}/MOM6_run_${RUN}"
+    SIS_parameter_doc.debugging SIS_parameter_doc.short SIS_parameter_doc.all MOM_IC.nc seaice.stats "${diag_dir}/MOM6_run_${RUN_long}"
     
     cp -a MOM_input input.nml MOM_override diag_table field_table SIS2_memory.h MOM_memory.h SIS_input SIS_override \
-    static_input.nml README "${diag_dir}/MOM6_run_${RUN}"
+    static_input.nml README "${diag_dir}/MOM6_run_${RUN_long}"
 
     # Move restarts to working dir (also create a backup)...
-    cp -ar RESTART/  "${diag_dir}/MOM6_run_${RUN}"
+    cp -ar RESTART/  "${diag_dir}/MOM6_run_${RUN_long}"
     cp -a RESTART/{MOM.res.nc,ice_model.res.nc} $SLC_work
     cp -a INPUT/topog.nc $SLC_work
 }
@@ -70,11 +69,11 @@ OM4_run(){
 slc_run(){
     # Run sea level change tool...
     echo "Running sea level change tool..."
-    $SLR_tool/main/master.py
-        --path      SLC_work
-        --iteration RUN
-        --PISM      DO_PISM
-        --VILMA     DO_VILMA
+    $SLR_tool/main/master.py  \
+        --path      SLC_work  \
+        --iteration RUN       \
+        --PISM      DO_PISM   \
+        --VILMA     DO_VILMA  \
         --verbose
 }
 
@@ -88,18 +87,20 @@ do
     SIM_END_TIME=$(echo "$CPL_TIMESTEP * $RUN" | bc )
     echo
     echo ' >> CPL_ITERATION=' $RUN
+    RUN_long=$(printf "%04d" "$RUN") # Leading 0's make organising directories easier
     # Run poem for coupling timestep
     OM4_run
-    if [$RUN==1]; then
-       cp ${diag_dir}/MOM6_run_${RUN}/{MOM_parameter_doc.all,SIS_parameter_doc.all} $SLC_work
-       cp ${diag_dir}/MOM6_run_${RUN}/*.ocean_static.nc $SLC_work/ocean_static.nc
-    
+    if [ $RUN == 1 ]; then
+       cp ${diag_dir}/MOM6_run_${RUN_long}/{MOM_parameter_doc.all,SIS_parameter_doc.all} $SLC_work
+       cp ${diag_dir}/MOM6_run_${RUN_long}/*.ocean_static.nc $SLC_work/ocean_static.nc
+    fi
     # Run sea level change tool
     slc_run
 
     # If change mask of altered cells has been generated, save figure properly.
-    if [-f chng_mask.pdf]; then
-        mv chng_mask.pdf ${diag_dir}/MOM6_run_${RUN}/chng_mask_${RUN}.pdf
+    if [ -f chng_mask.pdf ]; then
+        mv chng_mask.pdf ${diag_dir}/MOM6_run_${RUN_long}/chng_mask_${RUN_long}.pdf
+    fi
     # In any case, copy restarts and topography back to INPUT for restart.
     cp ${SLC_work}/{MOM.res.nc,ice_model.res.nc,coupler.res,topog.nc} INPUT
 done
