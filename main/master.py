@@ -57,11 +57,11 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--iteration', action="store", dest="iteration",
                         required=True, 
                         help="The current coupling interation")
-    parser.add_argument('--PISM', action="store", dest="PISM",
-                        required=True, 
+    parser.add_argument('--PISM', action="store_true", dest="PISM",
+                        required=False, 
                         help="Check for changes in land ice extent?")
-    parser.add_argument('--VILMA', action="store", dest="VILMA",
-                        required=True,
+    parser.add_argument('--VILMA', action="store_true", dest="VILMA",
+                        required=False,
                         help="list of variable names not to copy to output \
                                 file")
     parser.add_argument('-v', '--verbose', action="store_true", 
@@ -81,16 +81,21 @@ if __name__ == "__main__":
     t_master_start = t.time()
 
     if args.verbose:
-        print("Running", sys.argv[0])
         print(" -> verbose output = True")
         print()
-
     if args.verbose | args.PISM:
         print("Running with PISM")
     if args.verbose | args.VILMA:
         print("Running with VILMA")
         print()
-
+    if args.verbose:
+        print(" Configurations settings:")
+        print("min_depth = "+str(min_depth)+"m")
+        print("min_thk = "+str(min_thk)+"m")
+        print("new_depth = "+str(new_depth)+"m")
+        print("iso_depth = "+str(iso_depth)+"m")
+        print("iso_size = "+str(iso_size)+" cells")
+        print("def_halo = "+str(def_halo)+" x target cell area")
 ########### Regridding PISM/VILMA restarts (Optional) ###########
     t_data_start = t.time()
 
