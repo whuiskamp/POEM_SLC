@@ -13,8 +13,10 @@
 
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-#SBATCH --qos=medium
-#SBATCH --time=7-00:00:00
+#SBATCH --qos=priority
+#SBATCH --time=2:00:00
+##SBATCH --qos=medium
+##SBATCH --time=7-00:00:00
 #SBATCH --constraint=tasksmax
 
 #SBATCH --output=sbatch.%j.out
@@ -38,15 +40,20 @@ if [ $START != 1 ]; then
     CPL_ITERATIONS+=$START # We want numbering consistency for a run upon restart. 
 fi
 
-DO_PISM=False  # Will this simulation include external forcing from PISM
-DO_VILMA=False  # Will this simulation include external forcing from VILMA
+DO_PISM=false  # Will this simulation include external forcing from PISM
+DO_VILMA=false  # Will this simulation include external forcing from VILMA
 
 mkdir -p $SLC_work
 
 OM4_run(){
     # Run MOM6-SIS2
     echo "Running MOM6-SIS2..."
-    srun --propagate=ALL ./MOM6_SIS2 > MOM_log 2>&1
+    srun --propagate=ALL ./MOM6 > MOM_log 2>&1
+    result=$?
+    if [ $result != 0 ]; then
+        exit $result
+    fi
+
     mkdir -p "${diag_dir}/MOM6_run_${RUN_long}"
     
     # Copy param. files to working dir...
@@ -68,14 +75,35 @@ OM4_run(){
 
 slc_run(){
     # Run sea level change tool...
-    echo "Running sea level change tool..."
-    $SLR_tool/main/master.py  \
-        --path      SLC_work  \
-        --iteration RUN       \
-        --PISM      DO_PISM   \
-        --VILMA     DO_VILMA  \
-        --verbose
-}
+    if [[ $DO_PISM = false && $DO_VILMA = false ]]; then
+        echo "Running sea level change tool without solid earth and ice sheets..."
+        $SLR_tool/main/master.py  \
+            --path      $SLC_work  \
+            --iteration $RUN       \
+            --verbose
+        result=$?
+    elif [[ $DO_PISM = true && $DO_VILMA = false]]; then
+        echo "Running sea level change tool with ice sheets..."
+        $SLR_tool/main/master.py  \
+            --path      $SLC_work  \
+            --iteration $RUN       \
+            --PISM                 \
+            --verbose
+        result=$?
+    elif [[ $DO_PISM = false && $DO_VILMA = true]]; then
+        echo "Running sea level change tool with solid earth..."
+        $SLR_tool/main/master.py  \
+            --path      $SLC_work  \
+            --iteration $RUN       \
+            --VILMA                 \
+            --verbose
+        result=$?   
+    fi
+
+    if [ $result != 0 ]; then
+        exit $result
+    fi
+}   
 
 
 # ----------- Run the model ----------
