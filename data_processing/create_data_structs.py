@@ -11,7 +11,6 @@
 from netCDF4 import Dataset as CDF
 import numpy as np
 import copy as cp
-import time as t
 import sys
 sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
 from shared_funcs import get_param
@@ -41,7 +40,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     # Identidy restart, parameter, and gridspec files
     old_bathy  = CDF(work_dir + '../INPUT/topog.nc','r')
     new_bathy  = CDF(work_dir + '/topog.nc','r')
-    ctrl_bathy = CDF(work_dir + '../INPUT/topog_ctrl','r')
+    ctrl_bathy = CDF(work_dir + '../INPUT/topog_ctrl.nc','r')
     MOM6_rest  = CDF(work_dir + '/MOM.res.nc','r')
     SIS2_rest  = CDF(work_dir + '/ice_model.res.nc','r')
     vgrid      = CDF(work_dir + '../INPUT/vgrid.nc','r')
@@ -76,16 +75,16 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     diffv        = MOM6_rest.variables['diffv']                          # Meridional horizontal viscous acceleration (m s-2)
     ubtav        = MOM6_rest.variables['ubtav']                          # Time mean baratropic zonal velocity (m s-1)
     vbtav        = MOM6_rest.variables['vbtav']                          # Time mean baratropic meridional velocity (m s-1)
-    ubt_IC       = MOM6_rest.variables['ubt_IC']                         # Next init. cond. for baratropic zonal velocity (m s-1)
-    vbt_IC       = MOM6_rest.variables['vbt_IC']                         # Next init. cond. for baratropic meridional velocity (m s-1)
-    uhbt_IC      = MOM6_rest.variables['uhbt_IC']                        # Next init. cond. for baratropic zonal transport (m3 s-1)
-    vhbt_IC      = MOM6_rest.variables['uhbt_IC']                        # Next init. cond. for baratropic meridional transport (m3 s-1)
+    #ubt_IC       = MOM6_rest.variables['ubt_IC']                         # Next init. cond. for baratropic zonal velocity (m s-1)
+    #vbt_IC       = MOM6_rest.variables['vbt_IC']                         # Next init. cond. for baratropic meridional velocity (m s-1)
+    #uhbt_IC      = MOM6_rest.variables['uhbt_IC']                        # Next init. cond. for baratropic zonal transport (m3 s-1)
+    #vhbt_IC      = MOM6_rest.variables['uhbt_IC']                        # Next init. cond. for baratropic meridional transport (m3 s-1)
     Kd_shear     = MOM6_rest.variables['Kd_shear']                       # Shear-driven turbulent diffusivity at interfaces (m2 s-1)
     Kv_shear     = MOM6_rest.variables['Kv_shear']                       # Shear-driven turbulent viscosity at interfaces (m2 s-1)
-    TKE_turb     = MOM6_rest.variables['TKE_turb']                       # Turbulent kinetic energy per unit mass at interfaces (m2 s-1)
-    Kv_shear_Bu  = MOM6_rest.variables['Kv_shear_Bu']                    # Shear-driven turbulent viscosity at vertex interfaces (m2 s-1)
-    Kv_slow      = MOM6_rest.variables['Kv_slow']                        # Vertical turbulent viscosity at interfaces due to slow processes (m2 s-1)
-    time_mom     = MOM6_rest.variables['Time']                           # Model time in days since simulation start (days)
+    #TKE_turb     = MOM6_rest.variables['TKE_turb']                       # Turbulent kinetic energy per unit mass at interfaces (m2 s-1)
+    #Kv_shear_Bu  = MOM6_rest.variables['Kv_shear_Bu']                    # Shear-driven turbulent viscosity at vertex interfaces (m2 s-1)
+    #Kv_slow      = MOM6_rest.variables['Kv_slow']                        # Vertical turbulent viscosity at interfaces due to slow processes (m2 s-1)
+    #time_mom     = MOM6_rest.variables['Time']                           # Model time in days since simulation start (days)
     
     ######################### Optional ocean vars ########################
     # This section should include all optional tracers such as biogeochemical fields
@@ -124,11 +123,11 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     p_surf       = SIS2_rest.variables['p_surf'][0,:,:].data;            # The pressure at the ocean surface (Pa) - may or may not include atmospheric pressure (from SIS2 code)
     t_surf_ice   = SIS2_rest.variables['t_surf_ice'][0,:,:].data;        # Surface temperature of sea ice (deg K)
     h_pond       = SIS2_rest.variables['h_pond'][0,:,:,:].data;          # Pond water thickness (m)
-    u_ice        = SIS2_rest.variables['u_ice'][0,:,:].data;             # Zonal ice velocity (ms-1)
-    v_ice        = SIS2_rest.variables['v_ice'][0,:,:].data;             # Meridional ice velocity (ms-1)
-    sig11        = SIS2_rest.variables['sig11'][0,:,:].data;             # The xx component of the stress tensor in Pa m (or N m-1)
-    sig12        = SIS2_rest.variables['sig12'][0,:,:].data;             # The xy and yx component of the stress tensor in Pa m (or N m-1)
-    sig22        = SIS2_rest.variables['sig22'][0,:,:].data;             # The yy component of the stress tensor in Pa m (or N m-1)
+    u_ice        = SIS2_rest.variables['u_ice_C'][0,:,:].data;           # Zonal ice velocity (ms-1) - remove '_C' when running on B-grid
+    v_ice        = SIS2_rest.variables['v_ice_C'][0,:,:].data;           # Meridional ice velocity (ms-1) - remove '_C' when running on B-grid
+    str_d        = SIS2_rest.variables['str_d'][0,:,:].data;             # The divergence stress tensor component in Pa m
+    str_t        = SIS2_rest.variables['str_t'][0,:,:].data;             # The tension stress tensor component in Pa m
+    str_s        = SIS2_rest.variables['str_s'][0,:,:].data;             # The shearing stress tensor component (cross term) in Pa m
     rough_mom    = SIS2_rest.variables['rough_mom'][0,:,:,:].data;       # The roughness for momentum at the ocean surface, as provided by ocean_rough_mod, apparently (?!) in m
     rough_heat = rough_mom; rough_moist = rough_mom                      # These are identical land-sea masks
     #coszen                                                               # Cosine of solar zenith angle
@@ -142,8 +141,8 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
     o_mask_new   = np.rint(Omask.variables['mask'][:,:].data);           # Updated ocean mask (boolean)
     C_P          = get_param(params_MOM,'C_P');                          # The heat capacity of seawater in MOM6 (J kg-1 K-1)
-    H_to_m       = get_param(params_MOM,'H_TO_M');
-    H_to_kg_m2   = get_param(params_SIS,'H_TO_KG_M2');                   # Grid cell to mass conversion factor (1 by default)
+    H_to_m       = get_param(params_MOM,'H_TO_M');                       # Grid cell thickness conversion to meteres (1 by default)
+    H_to_kg_m2   = SIS2_rest.variables['H_to_kg_m2'][0].data;            # Grid cell to mass conversion factor (1 by default)
     err_mass     = 0                                                     # Error in ocean mass after re-distribution between cells
     err_enth     = 0                                                     # Error in ocean temp after re-distribution between cells 
     err_salt     = 0                                                     # Error in ocean salt after re-distribution between cells
@@ -244,15 +243,15 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.diffv          = diffv
     MOM.ubtav          = ubtav
     MOM.vbtav          = vbtav
-    MOM.ubt_IC         = ubt_IC
-    MOM.vbt_IC         = vbt_IC
-    MOM.uhbt_IC        = uhbt_IC
-    MOM.vhbt_IC        = vhbt_IC
+    #MOM.ubt_IC         = ubt_IC
+    #MOM.vbt_IC         = vbt_IC
+    #MOM.uhbt_IC        = uhbt_IC
+    #MOM.vhbt_IC        = vhbt_IC
     MOM.Kd_shear       = Kd_shear
     MOM.Kv_shear       = Kv_shear
-    MOM.TKE_turb       = TKE_turb
-    MOM.Kv_shear_Bu    = Kv_shear_Bu
-    MOM.Kv_slow        = Kv_slow
+    #MOM.TKE_turb       = TKE_turb
+    #MOM.Kv_shear_Bu    = Kv_shear_Bu
+    #MOM.Kv_slow        = Kv_slow
     MOM.coast          = coast
     MOM.chng_mask      = chng_mask
     MOM.h_size_mask    = h_size_mask
@@ -261,14 +260,14 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.grid_x         = grid_x
     MOM.grid_y         = grid_y
     MOM.grid_z         = grid_z
-    MOM.grid_dz        = grid_dz
+    #MOM.grid_dz        = grid_dz
     MOM.cell_area      = cell_area
     MOM.C_P            = C_P
     MOM.H_to_m         = H_to_m
     MOM.err_mass       = err_mass
     MOM.err_enth       = err_enth
     MOM.err_salt       = err_salt
-    MOM.time           = time_mom
+    #MOM.time           = time_mom
     # Optional fields
     try:
         MOM.age        = age
@@ -300,9 +299,9 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     SIS.h_pond         = h_pond
     SIS.u_ice          = u_ice
     SIS.v_ice          = v_ice
-    SIS.sig11          = sig11
-    SIS.sig12          = sig12
-    SIS.sig22          = sig22
+    SIS.str_d          = str_d
+    SIS.str_t          = str_t
+    SIS.str_s          = str_s
     SIS.rough_mom      = rough_mom
     SIS.rough_moist    = rough_moist
     SIS.rough_heat     = rough_heat
@@ -323,6 +322,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     OLD.h_ice          = h_ice_old
     OLD.h_sno          = h_sno_old
     OLD.ice_frac       = ice_frac_old
-      
+    if verbose:
+        print('Data structures successfully initialised')
     return MOM, SIS, OLD, ICE, OPTS 
     

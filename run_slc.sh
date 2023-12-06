@@ -8,7 +8,7 @@
 
 #SBATCH --tasks=32
 
-#SBATCH --tasks-per-node=16
+##SBATCH --tasks-per-node=16
 ##SBATCH --partition=haswell
 
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
@@ -17,7 +17,7 @@
 #SBATCH --time=2:00:00
 ##SBATCH --qos=medium
 ##SBATCH --time=7-00:00:00
-#SBATCH --constraint=tasksmax
+##SBATCH --constraint=tasksmax
 
 #SBATCH --output=sbatch.%j.out
 ##SBATCH --error=sbatch.%j.err
@@ -82,7 +82,7 @@ slc_run(){
             --iteration $RUN       \
             --verbose
         result=$?
-    elif [[ $DO_PISM = true && $DO_VILMA = false]]; then
+    elif [[ $DO_PISM = true && $DO_VILMA = false ]]; then
         echo "Running sea level change tool with ice sheets..."
         $SLR_tool/main/master.py  \
             --path      $SLC_work  \
@@ -90,7 +90,7 @@ slc_run(){
             --PISM                 \
             --verbose
         result=$?
-    elif [[ $DO_PISM = false && $DO_VILMA = true]]; then
+    elif [[ $DO_PISM = false && $DO_VILMA = true ]]; then
         echo "Running sea level change tool with solid earth..."
         $SLR_tool/main/master.py  \
             --path      $SLC_work  \

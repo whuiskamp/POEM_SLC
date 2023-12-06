@@ -83,19 +83,19 @@ if __name__ == "__main__":
     if args.verbose:
         print(" -> verbose output = True")
         print()
-    if args.verbose | args.PISM:
+    if args.verbose and args.PISM:
         print("Running with PISM")
-    if args.verbose | args.VILMA:
+    if args.verbose and args.VILMA:
         print("Running with VILMA")
         print()
     if args.verbose:
         print(" Configurations settings:")
         print("min_depth = "+str(min_depth)+"m")
-        print("min_thk = "+str(min_thk)+"m")
+        print("min_thk   = "+str(min_thk)+"m")
         print("new_depth = "+str(new_depth)+"m")
         print("iso_depth = "+str(iso_depth)+"m")
-        print("iso_size = "+str(iso_size)+" cells")
-        print("def_halo = "+str(def_halo)+" x target cell area")
+        print("iso_size  = "+str(iso_size)+" cells")
+        print("def_halo  = "+str(def_halo)+" x target cell area")
 ########### Regridding PISM/VILMA restarts (Optional) ###########
     t_data_start = t.time()
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         t_regr = t.time() - t_regr_start
 
 ########### Read in model files and create data structures ###########
-    MOM,SIS,OLD,ICE,OPTS = init_data_structs((str(exp_path)),args.PISM,args.VILMA,args.verbose)
+    MOM,SIS,OLD,ICE,OPTS = init_data_structs((str(args.exp_path)),args.PISM,args.VILMA,args.verbose)
     # Apply settings
     OPTS.min_depth = min_depth
     OPTS.new_depth = new_depth

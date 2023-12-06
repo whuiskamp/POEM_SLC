@@ -210,5 +210,5 @@ def get_param(data,name=''):
         out = find.match(line)
         if out:       
             _, val = out.groups()
-    out = float(val)
-    return out
+    #out = float(val)
+    return float(val)
