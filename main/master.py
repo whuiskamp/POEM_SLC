@@ -53,17 +53,16 @@ if __name__ == "__main__":
 
     parser.add_argument('-p', '--path', action="store", dest="exp_path",
                         required=True, 
-                        help="Path to the experiment directory")
+                        help="Path to the experiment (SLC data) directory")
     parser.add_argument('-i', '--iteration', action="store", dest="iteration",
                         required=True, 
                         help="The current coupling interation")
     parser.add_argument('--PISM', action="store_true", dest="PISM",
                         required=False, 
-                        help="Check for changes in land ice extent?")
+                        help="Running with coupled PISM (optional)")
     parser.add_argument('--VILMA', action="store_true", dest="VILMA",
                         required=False,
-                        help="list of variable names not to copy to output \
-                                file")
+                        help="Running with coupled VILMA (optional)")
     parser.add_argument('-v', '--verbose', action="store_true", 
                         help="increase output verbosity")
     args = parser.parse_args()
