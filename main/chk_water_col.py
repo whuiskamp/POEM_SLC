@@ -33,28 +33,41 @@ import matplotlib.pyplot as plt
 def check_water_col(MOM,ICE,OPTS):
     # Before checking individual cells, check if an an adjustment needs to be made for 
     # global mean sea level. If so, re-scale the topography and SSH fields.
-    glob_ave_ssh = np.mean(MOM.ave_ssh)
+    
+    glob_ave_ssh = np.nanmean(MOM.ave_eta)
+    if OPTS.verbose:
+        print('Checking global mean seal level for changes...')
+        print('Global mean sea level = '+str(glob_ave_ssh)+'m')
     if glob_ave_ssh >= 1:
         MOM.depth_new += 1
         MOM.eta       -= 1
         MOM.ave_eta   -= 1  
         OPTS.bathy_chg = True
+        if OPTS.verbose:
+            print('Sea level has increased; adjusting topography by +1m...')
     elif glob_ave_ssh <= -1:
         MOM.depth_new -= 1
         MOM.eta       += 1
         MOM.ave_eta   += 1
         OPTS.bathy_chg = True
-    
+        if OPTS.verbose:
+            print('Sea level has decreased; adjusting topography by -1m...')
+    elif not abs(glob_ave_ssh) >= 1 and OPTS.verbose:
+        print('GMS has not changed by 1m or more, moving on...')
+
     # Check 1: Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
     # Remember, in PISM 1 = Ice free bedrock, 2 = Grounded ice, 3 = Floating ice shelf
     # 4 = Open ocean.
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
-            if (ICE.I_mask[i,j] == 2 and MOM.o_mask[i,j] > 0) or MOM.depth_new[i,j] < OPTS.min_depth:
+            if (ICE.I_mask[i,j] == 2 and MOM.o_mask[i,j] > 0) or (MOM.depth_new[i,j] < OPTS.min_depth and MOM.o_mask[i,j] > 0):
                 MOM.o_mask_new[i,j] = 0;
                 MOM.depth_new[i,j]  = 0; 
                 MOM.chng_mask[i,j]  = -1;
+                if OPTS.verbose:
+                    print('cell i='+str(i)+', j='+str(j)+' is becoming land \
+                          due to changes in ice mask/ bathymetry')
     
     # Check 2: Has a change in SSH created new land?
     for i in range(MOM.grid_y):
@@ -63,7 +76,9 @@ def check_water_col(MOM,ICE,OPTS):
                 MOM.o_mask_new[i,j] = 0;
                 MOM.depth_new[i,j]  = 0;
                 MOM.chng_mask[i,j]  = -1;
-     
+                if OPTS.verbose:
+                    print('cell i='+str(i)+', j='+str(j)+' is becoming land \
+                          due to a decrease in SSH')
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
@@ -72,7 +87,9 @@ def check_water_col(MOM,ICE,OPTS):
                 if eta_mean >= OPTS.new_depth: 
                     MOM.chng_mask[i,j]  = 1;
                     MOM.o_mask_new[i,j] = 1;
-    
+                    if OPTS.verbose:
+                        print('cell i='+str(i)+', j='+str(j)+' is becoming ocean')
+
     # Having completed these checks/ changes, set all land values to 0.
     MOM.depth_new[MOM.o_mask <= 0] = 0   
 

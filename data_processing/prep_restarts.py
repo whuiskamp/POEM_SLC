@@ -15,7 +15,7 @@ import os.path
 from netCDF4 import Dataset as CDF
 import numpy as np
 
-def update_bathy(MOM):
+def update_bathy(MOM,work_dir):
     # This function saves the new bathymetry field to the new topog.nc topography file for MOM6.
     # This function assumes no changes were made to the land sea mask, but that the bathymetry was modified due
     # to forcing from the solid earth model. 

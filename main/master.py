@@ -24,7 +24,7 @@ import regrid_restarts
 from create_data_structs import init_data_structs 
 from chk_water_col import check_water_col
 from regrid_lateral import redist_vals
-import prep_restarts
+from prep_restarts import update_bathy, prep_fields, write_rest
 
 __author__ 	   = "Willem Huiskamp"
 __copyright__  = "Copyright 2023"
@@ -109,6 +109,7 @@ if __name__ == "__main__":
     MOM,SIS,OLD,ICE,OPTS = init_data_structs((str(args.exp_path)),args.PISM,args.VILMA,args.verbose)
     # Apply settings
     OPTS.min_depth = min_depth
+    OPTS.min_thk   = min_thk
     OPTS.new_depth = new_depth
     OPTS.iso_depth = iso_depth
     OPTS.iso_size  = iso_size
@@ -124,7 +125,7 @@ if __name__ == "__main__":
         pass
     elif (OPTS.cont == False) and (OPTS.bathy_chg == True):
         t_change_start = t.time()
-        update_bathy(MOM)
+        update_bathy(MOM,OPTS.w_dir)
     else:
         t_change_start = t.time()
         # There are cells that need altering, redistribute mass and tracers
@@ -134,14 +135,15 @@ if __name__ == "__main__":
         # Write out new restart files
         write_rest(MOM,SIS,OPTS)
         t_change = t.time() - t_change_start
-        t_total = t.time() - t_master_start
+    t_total = t.time() - t_master_start
     
     # Optional performance information
     if args.verbose:
         print("SLC tool finished. Time taken for each operation:")
-        print("Pre-processing: "+str(t_regr)+" secs")
+        if 't_regr' in locals():
+            print("Pre-processing: "+str(t_regr)+" secs")
         print("Data importing (total): "+str(t_data)+" secs")
         print("Check cells: "+str(t_check)+" secs")
-        if t_change in locals():
+        if 't_change' in locals():
             print("Updating restarts: "+str(t_change)+" secs")
         print("Total: "+str(t_total)+" secs")

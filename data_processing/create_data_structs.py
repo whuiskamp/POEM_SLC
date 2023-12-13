@@ -38,15 +38,15 @@ class old_vars:
 
 def init_data_structs(work_dir,ICE,EARTH,verbose):
     # Identidy restart, parameter, and gridspec files
-    old_bathy  = CDF(work_dir + '../INPUT/topog.nc','r')
+    old_bathy  = CDF(work_dir + '/../INPUT/topog.nc','r')
     new_bathy  = CDF(work_dir + '/topog.nc','r')
-    ctrl_bathy = CDF(work_dir + '../INPUT/topog_ctrl.nc','r')
+    ctrl_bathy = CDF(work_dir + '/../INPUT/topog_ctrl.nc','r')
     MOM6_rest  = CDF(work_dir + '/MOM.res.nc','r')
     SIS2_rest  = CDF(work_dir + '/ice_model.res.nc','r')
-    vgrid      = CDF(work_dir + '../INPUT/vgrid.nc','r')
+    vgrid      = CDF(work_dir + '/../INPUT/vgrid.nc','r')
     params_MOM = open(work_dir + '/MOM_parameter_doc.all','r').readlines()
     params_SIS = open(work_dir + '/SIS_parameter_doc.all','r').readlines()
-    Omask     = CDF(work_dir + '../INPUT/ocean_mask.nc','r')
+    Omask     = CDF(work_dir + '/../INPUT/ocean_mask.nc','r')
     grid      = CDF(work_dir + '/ocean_static.nc','r')
 
     if ICE:

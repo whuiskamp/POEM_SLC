@@ -374,13 +374,13 @@ def check_cells(MOM,OPTS):
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if MOM.chng_mask[i,j] == 1 or MOM.chng_mask[i,j] == -1:
-                # print('row='+str(i)+'col='+str(j))
                 # First check for individual isolated cells
                 if one_cell_chk(i,j,MOM) == 'True':
                     continue
                 # If none are found, we need to check if multiple cells have 
                 # become isolated. For algorithm to work, we must search in 
                 # both 'directions'. Try one, then the other.
+                #print('cell i='+str(i)+', j='+str(j)+', chng_mask='+str(MOM.chng_mask[i,j])) # For debugging
                 iso_mask = ID_iso_cells(i,j,'right',MOM,OPTS)
                 if iso_mask is None:
                     iso_mask = ID_iso_cells(i,j,'left',MOM,OPTS)
