@@ -103,7 +103,7 @@ def sum_ice_enth(row,col,e_ice,e_sno,h_ice,h_sno,ice_frac,cell_area,s_ice,kg_H):
    
     return total
 
-def glob_sum_ice_sal(h_ice,ice_frac,S,kg_H,nk_ice,cell_area):
+def glob_sum_ice_sal(h_ice,ice_frac,sal_ice,kg_H,nk_ice,cell_area):
     # Calculates the sum of salinity for ice in sea ice model. Note there is 
     # no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 
@@ -116,17 +116,17 @@ def glob_sum_ice_sal(h_ice,ice_frac,S,kg_H,nk_ice,cell_area):
     #     nk_ice     - Number of vertical levels in sea ice field
     # Out: total     - Total salinity in sea ice
     kg_H_Nk = kg_H/nk_ice; total = 0
-    sal_ice = np.full([4,5,80,120], S)
+    
     for row in range(ice_frac.shape[1]):
         for col in range(ice_frac.shape[2]):
-            for cat in range(ice_frac.shape[0]):
-                for lvl in range(sal_ice.shape[0]):
-                    total = total + (ice_frac[cat,row,col] * cell_area[row,col]) * \
-                        (0.001*(kg_H_Nk*h_ice[cat,row,col])) * sal_ice[lvl,cat,row,col]
-                        
+            if np.sum(ice_frac,0)[row,col] > 0:       # If no ice exists, skip it
+                for cat in range(ice_frac.shape[0]):
+                    for lvl in range(sal_ice.shape[0]):
+                        total = total + (ice_frac[cat,row,col] * cell_area[row,col]) * \
+                            (0.001*(kg_H_Nk*h_ice[cat,row,col])) * sal_ice[lvl,cat,row,col]
     return total
 
-def sum_ice_sal(row,col,ice_frac,cell_area,h_ice,S,kg_H,nk_ice):
+def sum_ice_sal(row,col,ice_frac,cell_area,h_ice,sal_ice,kg_H,nk_ice):
     # Calculates the sum of salinity for ice in sea ice model at grid cell 
     # [row,col]. Note there is no calculation for snow, as it has a salinity of 0.
     # This function is taken from the equivalent function ice_stock_pe from 
@@ -139,8 +139,7 @@ def sum_ice_sal(row,col,ice_frac,cell_area,h_ice,S,kg_H,nk_ice):
     #      nk_ice     - Number of vertical levels in sea ice field
     # Out: total      - Total salinity in sea ice
     kg_H_Nk = kg_H/nk_ice; total = 0
-    sal_ice = np.full([4,5,80,120], S)
-    
+        
     for cat in range(ice_frac.shape[0]):
         for lvl in range(sal_ice.shape[0]):
             total = total + (ice_frac[cat,row,col] * cell_area[row,col]) * \

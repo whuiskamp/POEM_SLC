@@ -66,6 +66,36 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action="store_true", 
                         help="increase output verbosity")
     args = parser.parse_args()
+    
+###################################### FOR TESTING ############################################
+def parse_arguments(args=None):
+    parser = argparse.ArgumentParser(
+        description="Identifies cells that should change from ocean to land or vice versa \
+                     and changes these accordingly while conserving mass and tracers",
+        epilog="Restart files are read in from MOM6, PISM (optional) and VILMA (optional)  \
+                 and ocean cells are checked if they should change from ocean to land based \
+                 based on water column thickness, grounded ice data from PISM and \
+                 shallowness of the bathymetry. Similarly, coastal land cells are assessed  \
+                 to see if they should become ocean."
+    )
+    parser.add_argument('-p', '--path', action="store", dest="exp_path",
+                        required=True,
+                        help="Path to the experiment (SLC data) directory")
+    parser.add_argument('-i', '--iteration', action="store", dest="iteration",
+                        required=True,
+                        help="The current coupling interation")
+    parser.add_argument('--PISM', action="store_true", dest="PISM",
+                        required=False,
+                        help="Running with coupled PISM (optional)")
+    parser.add_argument('--VILMA', action="store_true", dest="VILMA",
+                        required=False,
+                        help="Running with coupled VILMA (optional)")
+    parser.add_argument('-v', '--verbose', action="store_true",
+                        help="increase output verbosity")
+
+    return parser.parse_args(args)
+
+args = parse_arguments(['-p','/p/projects/poem/huiskamp/slc/slc_test_1/SLC','-i','69','-v'])
 
 ########### Settings ###########
     min_depth = 5  # The depth at which a water column is made land

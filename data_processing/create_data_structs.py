@@ -104,8 +104,9 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     # We do not import the incoming shortwave radiation as we have no reason to alter these fields
     h_ice        = SIS2_rest.variables['h_ice'][0,:,:,:].data;           # Ice thickness (m)
     h_sno        = SIS2_rest.variables['h_snow'][0,:,:,:].data;          # Snow thickness (m)
-    ice_frac     = SIS2_rest.variables['part_size'][0,1:6,:,:].data;     # Ice fraction (0-1)
+    ice_frac     = SIS2_rest.variables['part_size'][0,1:6,:,:].data;     # Ice fraction (0-1) - first category is ocean, so we don't need this.
     s_ice        = SIS2_rest.variables['sal_ice'][0,0,0,0,0].data;       # Salinity of sea ice in g/kg - it's a fixed value
+    s_ice_grid   = SIS2_rest.variables['sal_ice'][0,:,:,:,:].data;       # As above, but in gridded form (this is just much easier for certain calcs.)
     e_ice        = SIS2_rest.variables['enth_ice'][0,:,:,:,:].data;      # Enthalpy of sea ice in J
     e_sno        = SIS2_rest.variables['enth_snow'][0,:,:,:,:].data;     # Enthalpy of snow in J
     flux_u       = SIS2_rest.variables['flux_u'][0,:,:].data;            # The flux of x-momentum into the ocean (Pa)
@@ -161,7 +162,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     grid_x     = lon.shape[1];                                           # Size of ocean longitude domain 
     grid_y     = lat.shape[0];                                           # Size of ocean latitude domain
     grid_z     = int(get_param(params_MOM,'NK'));                        # Number of vertical levels in ocean
-    cell_area  = grid.variables['area_t'][:,:];                              # Area of h (tracer) cells
+    cell_area  = grid.variables['area_t'][:,:];                          # Area of h (tracer) cells
     nk_ice     = get_param(params_SIS,'NK_ICE');                         # Number of z-levels in sea ice model (default=4)
     # grid_dz    = vgrid.variables['dz'][:];                               # Default vertical grid spacing (m) (at the moment this is not used) - update to MOM6 has removed this var. from this file.
     

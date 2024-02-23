@@ -44,6 +44,8 @@ from shared_funcs import get_halo
 from shared_funcs import halo_eta
 from SIS2_funcs import sum_ice_enth
 from SIS2_funcs import sum_ice_sal
+from SIS2_funcs import glob_sum_ice_sal
+from SIS2_funcs import glob_sum_ice_enth
 
 ############################## Define functions ###############################
 def halo_calc(row,col,data,MOM,size,operation):
@@ -150,7 +152,7 @@ def redist_mass(MOM,SIS,row,col):
     #      h_sno             - Snow mass (kg/m2)
     #      o_temp            - Ocean potential temp. (degC)
     #      o_salt            - Ocean salinity (ppt)
-    # Out: new_h             - Updates ocean vertical layer thickness (m)
+    # Out: new_h             - Updated ocean vertical layer thickness (m)
     #      o_temp            - Updated temp. field (degC)
     #      o_salt            - Updated salinity field  (ppt)
     #     
@@ -183,9 +185,11 @@ def redist_mass(MOM,SIS,row,col):
         # 4. Correct tracer concentrations for change in h thickness
         o_temp, o_salt = tracer_correct(MOM.h_oce,newh,MOM) # This alters exising tracer fields and returns
                                                      # values corrected for change in mass
-        # 5. Remove ocean cell from h field
+        # 5. Remove mass from ocean and ice h fields
         newh[:,row,col] = 0                          # Remove mass from cell and set layers to be land
         SIS.ice_frac[:,row,col] = 0                  # Remove ice and snow from cell
+        SIS.h_ice[:,row,col] = 0
+        SIS.h_sno[:,row,col] = 0
     elif MOM.chng_mask(row,col) == 1: # Filling a cell (land -> ocean)
         # 2. Check surrounding SSH
         eta_mean = halo_eta(MOM.eta,row,col);
@@ -310,6 +314,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
     #      o_temp      - Ocean potential temp. (degC)
     #      o_salt      - Ocean salinity (ppt)
     #      s_ice       - Salinity of sea ice (g/kg)
+    #      s_ice_grid  - As above, but on model grid.
     #      chng_mask   - Mask indicating if cell is to change 
     #                    from land>ocean or vice versa (1 or -1)
     #      h_size_mask - Halo size for cell to be altered (radius in # of cells)
@@ -347,7 +352,7 @@ def redist_tracers(MOM,SIS,row,col,tracer=''):
             # 1.4 Sum salinity in sea ice (snow has no salt content)
             if np.sum(SIS.ice_frac[:,row,col],0) > 0:
                 ice_tot = sum_ice_sal(row,col,SIS.ice_frac,MOM.cell_area,SIS.h_ice, \
-                                      SIS.s_ice,SIS.H_to_kg_m2,SIS.nk_ice)
+                                      SIS.s_ice_grid,SIS.H_to_kg_m2,SIS.nk_ice)
             
             # 1.5 Sum salt in ocean water
             oce_tot = sum_ocean_salt(row,col,MOM.o_salt,MOM.h_oce,MOM,True)
@@ -476,8 +481,8 @@ def chk_conserv(OLD,SIS,MOM,data=""):
     #                           redistribution (deg C)
     #      o_salt (new/old)   - Fields of ocean salinity prior to and after
     #                           redistribution (ppt)
-    #      s_ice (new/old)    - Fields of sea ice salinity prior to and after
-    #                           redistribution (ppt)
+    #      s_ice              - Value of sea ice salinity (effectively fixed)
+    #      s_ice_grid         - Field of sea ice salinity (effectively fixed)
     #      e_ice (new/old)    - Fields of sea ice enthalpy prior to and after
     #                           redistribution (J)
     #      e_sno (new/old)    - Fields of snow enthalpy prior to and after
@@ -494,25 +499,34 @@ def chk_conserv(OLD,SIS,MOM,data=""):
         # Calculate total ocean enthalpy
         total_old += sum_ocean_enth(None,None,OLD.o_temp,OLD.h_oce,MOM,False)
         total_new += sum_ocean_enth(None,None,MOM.o_temp,MOM.h_oce,MOM,False)
+        
+        
         # Calculate total ice enthalpy
-        for row in range(MOM.grid_y):
-            for col in range(MOM.grid_x):
-                total_old += sum_ice_enth(row,col,OLD.e_ice,OLD.e_sno,OLD.h_ice, \
-                                   OLD.h_sno,OLD.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
-                total_new += sum_ice_enth(row,col,SIS.e_ice,SIS.e_sno,SIS.h_ice, \
-                                   SIS.h_sno,SIS.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
+        #for row in range(MOM.grid_y):
+        #    for col in range(MOM.grid_x):
+        #        total_old += sum_ice_enth(row,col,OLD.e_ice,OLD.e_sno,OLD.h_ice, \
+        #                           OLD.h_sno,OLD.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
+        #        total_new += sum_ice_enth(row,col,SIS.e_ice,SIS.e_sno,SIS.h_ice, \
+        #                           SIS.h_sno,SIS.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
         MOM.err_enth = total_old - total_new
     elif data == 'salt':
+        # Calculate total ocean salt mass
         total_old = sum_ocean_salt(None,None,OLD.o_salt,OLD.h_oce,MOM,False)
         total_new = sum_ocean_salt(None,None,MOM.o_salt,MOM.h_oce,MOM,False)
-        for row in range(MOM.grid_y):
-            for col in range(MOM.grid_x):
-                total_old += sum_ice_sal(row,col,OLD.ice_frac, \
-                                           MOM.cell_area,OLD.h_ice,SIS.s_ice, \
-                                           SIS.H_to_kg_m2,SIS.nk_ice)
-                total_new += sum_ice_sal(row,col,SIS.ice_frac, \
-                                           MOM.cell_area,SIS.h_ice,SIS.s_ice, \
-                                           SIS.H_to_kg_m2,SIS.nk_ice)
+        
+        # Calculate total sea ice salt mass
+        total_old += glob_sum_ice_sal(OLD.h_ice,OLD.ice_frac,SIS.s_ice_grid,SIS.H_to_kg_m2, \
+                                      SIS.nk_ice,MOM.cell_area)
+        total_new += glob_sum_ice_sal(SIS.h_ice,SIS.ice_frac,SIS.s_ice_grid,SIS.H_to_kg_m2, \
+                                      SIS.nk_ice,MOM.cell_area)
+        #for row in range(MOM.grid_y):
+        #    for col in range(MOM.grid_x):
+        #        total_old += sum_ice_sal(row,col,OLD.ice_frac, \
+        #                                   MOM.cell_area,OLD.h_ice,SIS.s_ice, \
+        #                                   SIS.H_to_kg_m2,SIS.nk_ice)
+        #        total_new += sum_ice_sal(row,col,SIS.ice_frac, \
+        #                                   MOM.cell_area,SIS.h_ice,SIS.s_ice, \
+        #                                   SIS.H_to_kg_m2,SIS.nk_ice)
         MOM.err_salt = total_old - total_new
         
     elif data == 'mass':
@@ -551,7 +565,7 @@ def redist_vals(MOM,SIS,OLD,OPTS):
 #      h_ice        - Ice thickness
 #      h_sno        - Snow thickness
 #      ice_frac     - Ice fraction
-#      s_ice        - Salinity of sea ice in g/kg - it's a fixed value
+#      s_ice_grid   - Salinity of sea ice in g/kg (constant, but on model grid)
 #      e_ice        - Enthalpy of sea ice in J
 #      e_sno        - Enthalpy of snow in J
 #      cell_area    - Area of h (tracer) cells
