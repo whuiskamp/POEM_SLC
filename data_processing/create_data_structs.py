@@ -281,6 +281,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     SIS.h_ice          = h_ice
     SIS.h_sno          = h_sno
     SIS.s_ice          = s_ice
+    SIS.s_ice_grid     = s_ice_grid
     SIS.e_ice          = e_ice
     SIS.e_sno          = e_sno
     SIS.flux_u         = flux_u
