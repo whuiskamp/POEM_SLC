@@ -493,6 +493,9 @@ def chk_conserv(OLD,SIS,MOM,data=""):
     #      SIS                - Sea ice data structure (contains all updated values)
     #      OLD                - Data structure with values prior to redistribution
     #      data               - Name of the variable we are checking (mass,temp,salt)
+    # Out: MOM.err_salt       - Difference between old and new global sum of salt
+    #      MOM.err_enth       - Difference between old and new global sum of enthalpy
+    #      MOM.err_mass       - Difference between old and new global sum of mass
     total_old = 0; total_new = 0
     err_tol = 1e-14 # Error tolerance for conservation
     if data == 'temp':
@@ -500,8 +503,12 @@ def chk_conserv(OLD,SIS,MOM,data=""):
         total_old += sum_ocean_enth(None,None,OLD.o_temp,OLD.h_oce,MOM,False)
         total_new += sum_ocean_enth(None,None,MOM.o_temp,MOM.h_oce,MOM,False)
         
-        
         # Calculate total ice enthalpy
+        total_old += glob_sum_ice_enth(OLD.e_ice,OLD.e_sno,OLD.ice_frac,MOM.cell_area,\
+                                       OLD.h_sno,OLD.h_ice,SIS.s_ice,SIS.H_to_kg_m2,SIS.nk_ice)
+        total_new += glob_sum_ice_enth(SIS.e_ice,SIS.e_sno,SIS.ice_frac,MOM.cell_area,\
+                                       SIS.h_sno,SIS.h_ice,SIS.s_ice,SIS.H_to_kg_m2,SIS.nk_ice)
+        
         #for row in range(MOM.grid_y):
         #    for col in range(MOM.grid_x):
         #        total_old += sum_ice_enth(row,col,OLD.e_ice,OLD.e_sno,OLD.h_ice, \
@@ -576,7 +583,6 @@ def redist_vals(MOM,SIS,OLD,OPTS):
 #      C_P          - The heat capacity of seawater in MOM6 (J kg-1 K-1)
 #      H_to_kg_m2   - grid cell to mass conversion factor (1 by default)
     
-    t_start = time.time()
     # Variable pre-processing
     scale_fac    = OPTS.def_halo                                  # A scaling factor determining how many times the surface are of the target cell is required for redist.  
     tmp          = cp.deepcopy(MOM.h_oce);                        # Dummy variable
@@ -625,9 +631,9 @@ def redist_vals(MOM,SIS,OLD,OPTS):
         print('Checking for conservation of salt...')
         chk_conserv(OLD,SIS,MOM,'salt')
         print('Redistribution of mass and tracers complete.' \
-              '\n Error in mass   = '+str(err_mass) + \
-              '\n Error in energy = '+str(err_T) +\
-              '\n Error in salt   = '+str(err_S))
+              '\n Error in mass   = '+str(MOM.err_mass) + \
+              '\n Error in energy = '+str(MOM.err_enth) +\
+              '\n Error in salt   = '+str(MOM.err_salt))
     return
     
     
