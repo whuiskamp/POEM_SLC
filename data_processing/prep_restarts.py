@@ -67,12 +67,12 @@ def write_rest(MOM,SIS,OPTS):
         slc.variables['lonh'].units = 'degrees_east'
         slc.variables['lonh'].cartesian_axis = 'X'
         slc.variables['lonh'].long_name = 'T-cell longitude'
-        slc.variables['lonh'][:] = grid.variables['lonh'][:]
+        slc.variables['lonh'][:] = MOM.lon[:]
         slc.createVariable('lath', 'f8', ('lath'));
         slc.variables['lath'].units = 'degrees_north'
         slc.variables['lath'].cartesian_axis = 'Y'
         slc.variables['lath'].long_name = 'T-cell latitude'
-        slc.variables['lath'][:] = grid.variables['lath'][:]
+        slc.variables['lath'][:] = MOM.lat[:]
         # slc.createVariable('time') #Not sure we want this?? Can we carry through a time var?
         ########## Define variables and fill data ##########
         # Model time
@@ -120,7 +120,7 @@ def write_rest(MOM,SIS,OPTS):
         slc.close()
     else:
         # If the file already exists...
-        slc = CDF(str(path)+'history/slc_diag.nc','a');
+        slc = CDF(str(OPTS.w_dir)+'/../history/slc_diag.nc','a');
         slc.variables['chng_mask'][:,:,:] = MOM.chng_mask[:,:]
         slc.variables['o_mask_new'][:,:,:] = MOM.o_mask_new[:,:]
         slc.variables['err_enth'][:] = MOM.err_enth
@@ -130,10 +130,10 @@ def write_rest(MOM,SIS,OPTS):
     
     # Write appropriate diagnostics to restart's metadata
     # Open files to write to        
-    new_bathy  = CDF(work_dir + '/topog.nc','r+')        
-    MOM6_rest  = CDF(work_dir + '/MOM.res.nc','r+')
-    SIS2_rest  = CDF(work_dir + '/ice_model.res.nc','r+')
-    Omask      = CDF(work_dir + 'ocean_mask.nc','r+')
+    new_bathy  = CDF(str(OPTS.w_dir) + '/topog.nc','r+')        
+    MOM6_rest  = CDF(str(OPTS.w_dir) + '/MOM.res.nc','r+')
+    SIS2_rest  = CDF(str(OPTS.w_dir) + '/ice_model.res.nc','r+')
+    Omask      = CDF(str(OPTS.w_dir) + 'ocean_mask.nc','r+')
 
     # Save new bathymetry/ mask data        
     new_bathy.variables['depth'][:,:] = MOM.depth_new
@@ -153,8 +153,12 @@ def write_rest(MOM,SIS,OPTS):
     SIS2_rest.variables['rough_mom'] = SIS.rough_mom
     SIS2_rest.variables['rough_heat'] = SIS.rough_heat
     SIS2_rest.variables['rough_moist'] = SIS.rough_moist
-            
-            
+    
+    # Close files
+    new_bathy.close()
+    MOM6_rest.close()
+    SIS2_rest.close()
+    Omask.close()            
             
             
             
