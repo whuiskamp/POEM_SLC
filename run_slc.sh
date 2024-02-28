@@ -13,16 +13,19 @@
 
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-#SBATCH --qos=priority
-#SBATCH --time=2:00:00
-##SBATCH --qos=medium
-##SBATCH --time=7-00:00:00
+##SBATCH --qos=priority
+##SBATCH --time=2:00:00
+#SBATCH --qos=medium
+#SBATCH --time=7-00:00:00
 ##SBATCH --constraint=tasksmax
 
 #SBATCH --output=sbatch.%j.out
 ##SBATCH --error=sbatch.%j.err
 
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
+
+# ----------- Load python env. ----------
+source activate /home/huiskamp/.conda/envs/mom6
 
 # ----------- Define paths ----------
 diag_dir=history
@@ -58,8 +61,10 @@ OM4_run(){
     
     # Copy param. files to working dir...
     cp -a MOM_parameter_doc.all SIS_parameter_doc.all $SLC_work
+    # Copy mask file and old topography to history dir.
+    cp -a INPUT/{topog.nc,ocean_mask.nc} "${diag_dir}/MOM6_run_${RUN_long}"
 
-    # Move diagnostics and log files to history directory
+    # Move diagnostics and log files to history dir.
     mv *.nc sbatch.62* MOM_parameter_doc* time_stamp.out CPU_stats ocean.stats logfile* MOM_log available_diags.* \
     V_velocity_truncations U_velocity_truncations SIS_parameter_doc.layout SIS.available_diags SIS_fast.available_diags \
     SIS_parameter_doc.debugging SIS_parameter_doc.short SIS_parameter_doc.all MOM_IC.nc seaice.stats "${diag_dir}/MOM6_run_${RUN_long}"
@@ -70,7 +75,7 @@ OM4_run(){
     # Move restarts to working dir (also create a backup)...
     cp -ar RESTART/  "${diag_dir}/MOM6_run_${RUN_long}"
     cp -a RESTART/{MOM.res.nc,ice_model.res.nc} $SLC_work
-    cp -a INPUT/topog.nc $SLC_work
+    cp -a INPUT/{topog.nc,ocean_mask.nc} $SLC_work
 }
 
 slc_run(){
