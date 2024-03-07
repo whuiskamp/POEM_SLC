@@ -31,9 +31,10 @@ def prep_fields(MOM,SIS):
     # Out: Modified fields in data structures
 
     # 1. The following fields always need to be changed in the restart file
-    MOM.h2      = np.square(MOM.h_oce)         # Auxiliary ocean layer thickness (m)
-    MOM.uh      = np.multiply(MOM.u,MOM.h_oce) # Zonal thickness flux (m3 s-1)
-    MOM.vh      = np.multiply(MOM.v,MOM.h_oce) # Meridional thickness flux (m3 s-1)
+    #MOM.h2      = np.square(MOM.h_oce)         # Auxiliary ocean layer thickness (m)
+    # I can't calculate these with the variables I have...
+    #MOM.uh      = np.multiply(MOM.u,MOM.h_oce) # Zonal thickness flux (m3 s-1)
+    #MOM.vh      = np.multiply(MOM.v,MOM.h_oce) # Meridional thickness flux (m3 s-1)
 
     # First element of each variable is essentially a land-sea mask. Update it here.
     SIS.rough_mom[0,:,:]   = MOM.o_mask_new
@@ -60,20 +61,20 @@ def write_rest(MOM,SIS,OPTS):
     if os.path.isfile(str(OPTS.w_dir)+'/../history/slc_diag.nc') == False: # Does the slc tool diagnostic file exist yet? If not, make one
         slc = CDF(str(OPTS.w_dir)+'/../history/slc_diag.nc', 'w')
         # Create dimensions for vars.
-        slc.createDimension('lonh', MOM.lon.shape[1])
-        slc.createDimension('lath', MOM.lat.shape[0])
+        slc.createDimension('lonh', MOM.lonh.shape[0])
+        slc.createDimension('lath', MOM.lath.shape[0])
         slc.createDimension('time', None)
         slc.createVariable('lonh', 'f8', ('lonh'));
         slc.variables['lonh'].units = 'degrees_east'
         slc.variables['lonh'].cartesian_axis = 'X'
         slc.variables['lonh'].long_name = 'T-cell longitude'
-        slc.variables['lonh'][:] = MOM.lon[:]
+        slc.variables['lonh'][:] = MOM.lonh[:]
         slc.createVariable('lath', 'f8', ('lath'));
         slc.variables['lath'].units = 'degrees_north'
         slc.variables['lath'].cartesian_axis = 'Y'
         slc.variables['lath'].long_name = 'T-cell latitude'
-        slc.variables['lath'][:] = MOM.lat[:]
-        # slc.createVariable('time') #Not sure we want this?? Can we carry through a time var?
+        slc.variables['lath'][:] = MOM.lath[:]
+        
         ########## Define variables and fill data ##########
         # Model time
         slc.createVariable('time','f8',('time'));
@@ -84,32 +85,32 @@ def write_rest(MOM,SIS,OPTS):
         slc.createVariable('chng_mask', 'f8', ('time','lath','lonh'))
         slc.variables['chng_mask'].units = 'none'
         slc.variables['chng_mask'].long_name = 'Mask indicating changing ocean/ land cells'
-        slc.variables['chng_mask'][:,:,:] = MOM.chng_mask[:,:]
+        slc.variables['chng_mask'][0,:,:] = MOM.chng_mask[:,:]
         # New ocean mask
         slc.createVariable('o_mask_new', 'f8', ('time','lath','lonh'))
         slc.variables['o_mask_new'].units = 'none'
         slc.variables['o_mask_new'].long_name = 'Updated ocean mask'
-        slc.variables['o_mask_new'][:,:,:] = MOM.o_mask_new[:,:]
+        slc.variables['o_mask_new'][0,:,:] = MOM.o_mask_new[:,:]
         # New bathymetry
         slc.createVariable('topog','f8',('time','lath','lonh'))
         slc.variables['topog'].units = 'm'
         slc.variables['topog'].long_name = 'Ocean bathymetry through time'
-        slc.variables['topog'][:,:,:] = MOM.depth_new[:,:]
+        slc.variables['topog'][0,:,:] = MOM.depth_new[:,:]
         # Conservation errors
         # Enthalpy
         slc.createVariable('err_enth','f8','time')
-        slc.variables['err_enth'].units = 'Joules'
-        slc.variables['err_enth'].long_name = 'Error in total ocean-ice enthalpy after redistribution'
+        slc.variables['err_enth'].units = '%'
+        slc.variables['err_enth'].long_name = 'Percent Error in total ocean-ice enthalpy after redistribution'
         slc.variables['err_enth'][:] = MOM.err_enth
         # Salt
         slc.createVariable('err_salt','f8','time')
-        slc.variables['err_salt'].units = 'kg'
-        slc.variables['err_salt'].long_name = 'Error in total ocean-ice salt after redistribution'
+        slc.variables['err_salt'].units = '%'
+        slc.variables['err_salt'].long_name = 'Percent Error in total ocean-ice salt after redistribution'
         slc.variables['err_salt'][:] = MOM.err_salt
         # Mass
         slc.createVariable('err_mass','f8','time')
-        slc.variables['err_mass'].units = 'kg'
-        slc.variables['err_mass'].long_name = 'Error in total ocean-ice mass after redistribution'
+        slc.variables['err_mass'].units = '%'
+        slc.variables['err_mass'].long_name = 'Percent Error in total ocean-ice mass after redistribution'
         slc.variables['err_mass'][:] = MOM.err_mass
         
         slc.description = "This file contains diagnostics from the SLC tool including: a mask which  \
@@ -121,19 +122,20 @@ def write_rest(MOM,SIS,OPTS):
     else:
         # If the file already exists...
         slc = CDF(str(OPTS.w_dir)+'/../history/slc_diag.nc','a');
-        slc.variables['chng_mask'][:,:,:] = MOM.chng_mask[:,:]
-        slc.variables['o_mask_new'][:,:,:] = MOM.o_mask_new[:,:]
-        slc.variables['err_enth'][:] = MOM.err_enth
-        slc.variables['err_salt'][:] = MOM.err_salt
-        slc.variables['err_mass'][:] = MOM.err_mass
+        T_tmp = len(slc.dimensions['time']) # Remember we 0-index...
+        slc.variables['chng_mask'][T_tmp,:,:] = MOM.chng_mask[:,:]
+        slc.variables['o_mask_new'][T_tmp,:,:] = MOM.o_mask_new[:,:]
+        slc.variables['err_enth'][T_tmp] = MOM.err_enth
+        slc.variables['err_salt'][T_tmp] = MOM.err_salt
+        slc.variables['err_mass'][T_tmp] = MOM.err_mass
         slc.close()
     
-    # Write appropriate diagnostics to restart's metadata
+    # Write appropriate diagnostics to restarts
     # Open files to write to        
     new_bathy  = CDF(str(OPTS.w_dir) + '/topog.nc','r+')        
     MOM6_rest  = CDF(str(OPTS.w_dir) + '/MOM.res.nc','r+')
     SIS2_rest  = CDF(str(OPTS.w_dir) + '/ice_model.res.nc','r+')
-    Omask      = CDF(str(OPTS.w_dir) + 'ocean_mask.nc','r+')
+    Omask      = CDF(str(OPTS.w_dir) + '/ocean_mask.nc','r+')
 
     # Save new bathymetry/ mask data        
     new_bathy.variables['depth'][:,:] = MOM.depth_new
@@ -145,9 +147,9 @@ def write_rest(MOM,SIS,OPTS):
     MOM6_rest.variables['h'][0,:,:,:]    = MOM.h_oce
     MOM6_rest.variables['ave_ssh'][0,:,:] = MOM.ave_eta
     MOM6_rest.variables['sfc'][0,:,:] = MOM.eta
-    MOM6_rest.variables['uh'] = MOM.uh
-    MOM6_rest.variables['vh'] = MOM.vh
-    MOM6_rest.variables['h2'] = MOM.h2
+    #MOM6_rest.variables['uh'] = MOM.uh
+    #MOM6_rest.variables['vh'] = MOM.vh
+    #MOM6_rest.variables['h2'] = MOM.h2
     
     # Update SIS2 restart
     SIS2_rest.variables['rough_mom'] = SIS.rough_mom
