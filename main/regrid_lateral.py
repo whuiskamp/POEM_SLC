@@ -515,7 +515,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
         #                           OLD.h_sno,OLD.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
         #        total_new += sum_ice_enth(row,col,SIS.e_ice,SIS.e_sno,SIS.h_ice, \
         #                           SIS.h_sno,SIS.ice_frac,MOM.cell_area,SIS.s_ice,SIS.H_to_kg_m2)
-        MOM.err_enth = total_old - total_new
+        MOM.err_enth = ((total_old - total_new)/total_old)*100
     elif data == 'salt':
         # Calculate total ocean salt mass
         total_old = sum_ocean_salt(None,None,OLD.o_salt,OLD.h_oce,MOM,False)
@@ -534,7 +534,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
         #        total_new += sum_ice_sal(row,col,SIS.ice_frac, \
         #                                   MOM.cell_area,SIS.h_ice,SIS.s_ice, \
         #                                   SIS.H_to_kg_m2,SIS.nk_ice)
-        MOM.err_salt = total_old - total_new
+        MOM.err_salt = ((total_old - total_new)/total_old)*100
         
     elif data == 'mass':
         ice_mass_old = 0; sno_mass_old = 0; ice_mass_new = 0; sno_mass_new = 0
@@ -550,13 +550,13 @@ def chk_conserv(OLD,SIS,MOM,data=""):
         # Total
         total_old    = ice_mass_old + sno_mass_old + sea_mass_old
         total_new    = ice_mass_new + sno_mass_new + sea_mass_new
-        MOM.err_mass = total_old - total_new
+        MOM.err_mass = ((total_old - total_new)/total_old)*100  
         
     if math.isclose(total_old,total_new,abs_tol=err_tol): # Past 1e-14, choice of summing algorith begins to impact
         print(data+' is conserving within a tolerance of '+str(err_tol))
     else:
-        tot_diff = total_old - total_new
-        raise ValueError(str(data+' is not conserving. Total_old - Total_new = '+str(tot_diff)))
+        tot_diff = ((total_old - total_new)/total_old)*100
+        raise ValueError(str(data+' is not conserving. Difference is = '+str(tot_diff))+'%')
     return
 ################################# Main Code ###################################
     
@@ -631,9 +631,9 @@ def redist_vals(MOM,SIS,OLD,OPTS):
         print('Checking for conservation of salt...')
         chk_conserv(OLD,SIS,MOM,'salt')
         print('Redistribution of mass and tracers complete.' \
-              '\n Error in mass   = '+str(MOM.err_mass) + \
-              '\n Error in energy = '+str(MOM.err_enth) +\
-              '\n Error in salt   = '+str(MOM.err_salt))
+              '\n Error in mass   = '+str(MOM.err_mass)+'%'+ \
+              '\n Error in energy = '+str(MOM.err_enth)+'%' +\
+              '\n Error in salt   = '+str(MOM.err_salt)+'%')
     return
     
     
