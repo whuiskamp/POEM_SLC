@@ -59,22 +59,24 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
         
     # Extract/ define variables
     # Ocean
+    lath         = MOM6_rest.variables['lath'][:].data                   # Latitude on model h grid (deg)
+    lonh         = MOM6_rest.variables['lonh'][:].data                   # Longitude on model h grid (deg)
     h_oce        = MOM6_rest.variables['h'][0,:,:,:].data                # Ocean layer thickness (m)
     o_temp       = MOM6_rest.variables['Temp'][0,:,:,:].data             # Ocean potential temperature (deg C)
     o_salt       = MOM6_rest.variables['Salt'][0,:,:,:].data             # Ocean salinity (ppt)
     ave_eta      = MOM6_rest.variables['ave_ssh'][0,:,:].data            # Time-average sea surface height (m)
     eta          = MOM6_rest.variables['sfc'][0,:,:].data                # Sea surface height (m)
-    u            = MOM6_rest.variables['u']                              # Zonal velocity (m s-1)
-    v            = MOM6_rest.variables['v']                              # Meridional velocity (m s-1)
-    u2           = MOM6_rest.variables['u2']                             # Auxiliary zonal velocity (m s-1)
-    v2           = MOM6_rest.variables['v2']                             # Auxiliary meridional velocity (m s-1)
-    h2           = MOM6_rest.variables['h2']                             # Auxiliary ocean layer thickness (m)
-    uh           = MOM6_rest.variables['uh']                             # Zonal thickness flux (m3 s-1)
-    vh           = MOM6_rest.variables['vh']                             # Meridional thickness flux (m3 s-1)
-    diffu        = MOM6_rest.variables['diffu']                          # Zonal horizontal viscous acceleration (m s-2)
-    diffv        = MOM6_rest.variables['diffv']                          # Meridional horizontal viscous acceleration (m s-2)
-    ubtav        = MOM6_rest.variables['ubtav']                          # Time mean baratropic zonal velocity (m s-1)
-    vbtav        = MOM6_rest.variables['vbtav']                          # Time mean baratropic meridional velocity (m s-1)
+    u            = MOM6_rest.variables['u'][0,:,:,:].data                # Zonal velocity (m s-1)
+    v            = MOM6_rest.variables['v'][0,:,:,:].data                # Meridional velocity (m s-1)
+    u2           = MOM6_rest.variables['u2'][0,:,:,:].data               # Auxiliary zonal velocity (m s-1)
+    v2           = MOM6_rest.variables['v2'][0,:,:,:].data               # Auxiliary meridional velocity (m s-1)
+    h2           = MOM6_rest.variables['h2'][0,:,:,:].data               # Auxiliary ocean layer thickness (m)
+    uh           = MOM6_rest.variables['uh'][0,:,:,:].data               # Zonal thickness flux (m3 s-1)
+    vh           = MOM6_rest.variables['vh'][0,:,:,:].data               # Meridional thickness flux (m3 s-1)
+    diffu        = MOM6_rest.variables['diffu'][0,:,:,:].data            # Zonal horizontal viscous acceleration (m s-2)
+    diffv        = MOM6_rest.variables['diffv'][0,:,:,:].data            # Meridional horizontal viscous acceleration (m s-2)
+    ubtav        = MOM6_rest.variables['ubtav'][0,:,:].data              # Time mean baratropic zonal velocity (m s-1)
+    vbtav        = MOM6_rest.variables['vbtav'][0,:,:].data              # Time mean baratropic meridional velocity (m s-1)
     #ubt_IC       = MOM6_rest.variables['ubt_IC']                         # Next init. cond. for baratropic zonal velocity (m s-1)
     #vbt_IC       = MOM6_rest.variables['vbt_IC']                         # Next init. cond. for baratropic meridional velocity (m s-1)
     #uhbt_IC      = MOM6_rest.variables['uhbt_IC']                        # Next init. cond. for baratropic zonal transport (m3 s-1)
@@ -256,6 +258,8 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.coast          = coast
     MOM.chng_mask      = chng_mask
     MOM.h_size_mask    = h_size_mask
+    MOM.lath           = lath
+    MOM.lonh           = lonh
     MOM.lat            = lat
     MOM.lon            = lon
     MOM.grid_x         = grid_x
