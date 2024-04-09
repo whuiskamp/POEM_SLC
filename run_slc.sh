@@ -34,7 +34,7 @@ SLR_tool=/p/projects/climber3/huiskamp/POEM/work/slr_tool
 runoff_regrid=/p/projects/climber3/huiskamp/regrid_runoff # Maybe incorporate this inside the tool??
 
 # ----------- Run parameters ----------
-START=1  # For a new run, start at 1. For a restart, set this to previous end + 1 (duh..)
+START=26  # For a new run, start at 1. For a restart, set this to previous end + 1 (duh..)
 
 CPL_TIMESTEP=10 # Coupling time-step in years (must be >=1)
 CPL_ITERATIONS=50 # Number of coupling iterations to simulate (must be >=1)
@@ -130,12 +130,13 @@ do
     # Run sea level change tool
     slc_run
 
-    # If change mask of altered cells has been generated, save figure properly.
+    # If change mask of altered cells has been generated, save figure and a backup of the data diags.
     if [ -f chng_mask.pdf ]; then
         mv chng_mask.pdf ${diag_dir}/MOM6_run_${RUN_long}/chng_mask_${RUN_long}.pdf
+        cp ${diag_dir}/slc_diag.nc ${diag_dir}/MOM6_run_${RUN_long}/.
     fi
     # In any case, copy restarts and topography back to INPUT for restart.
-    cp ${SLC_work}/{MOM.res.nc,ice_model.res.nc,coupler.res,topog.nc} INPUT
+    cp ${SLC_work}/{MOM.res.nc,ice_model.res.nc,topog.nc} INPUT
 done
 
 
