@@ -86,7 +86,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     #TKE_turb     = MOM6_rest.variables['TKE_turb']                       # Turbulent kinetic energy per unit mass at interfaces (m2 s-1)
     #Kv_shear_Bu  = MOM6_rest.variables['Kv_shear_Bu']                    # Shear-driven turbulent viscosity at vertex interfaces (m2 s-1)
     #Kv_slow      = MOM6_rest.variables['Kv_slow']                        # Vertical turbulent viscosity at interfaces due to slow processes (m2 s-1)
-    #time_mom     = MOM6_rest.variables['Time']                           # Model time in days since simulation start (days)
+    time_mom     = MOM6_rest.variables['Time'][:].data                   # Model time in days since simulation start (days)
     
     ######################### Optional ocean vars ########################
     # This section should include all optional tracers such as biogeochemical fields
@@ -101,7 +101,6 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
 
     if verbose:
         print('Ocean vars successfully extracted')
-#    chng_mask    = chng_file.variables['chng_mask'][:,:];                # Mask of cells to change
     # Sea Ice
     # We do not import the incoming shortwave radiation as we have no reason to alter these fields
     h_ice        = SIS2_rest.variables['h_ice'][0,:,:,:].data;           # Ice thickness (m)
@@ -144,6 +143,8 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     h_size_mask  = np.zeros(chng_mask.shape,dtype=float);                # Halo size mask
     o_mask_new   = np.rint(Omask.variables['mask'][:,:].data);           # Updated ocean mask (boolean)
     C_P          = get_param(params_MOM,'C_P');                          # The heat capacity of seawater in MOM6 (J kg-1 K-1)
+    rho_ice      = get_param(params_SIS,'RHO_ICE');                      # The nominal density of ice used in SIS (kg m-3)
+    rho_snow     = get_param(params_SIS,'RHO_SNOW');                     # The nominal density of snow used in SIS (kg m-3)
     H_to_m       = get_param(params_MOM,'H_TO_M');                       # Grid cell thickness conversion to meteres (1 by default)
     H_to_kg_m2   = SIS2_rest.variables['H_to_kg_m2'][0].data;            # Grid cell to mass conversion factor (1 by default)
     err_mass     = 0                                                     # Error in ocean mass after re-distribution between cells
@@ -193,6 +194,8 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     ave_eta[o_mask==0]  = np.nan                                         # Change land to NaN
     eta[o_mask==0]      = np.nan                                         # Change land to NaN
     h_sum               = np.sum(h_oce,0);                               # Thickness of water column (NOT depth of bathymetry)
+    h_ice               = np.divide(h_ice,rho_ice)                       # h_ice is stored as a mass/m2 - we want height
+    h_sno               = np.divide(h_sno,rho_snow)                      # h_sno is stored as a mass/m2 - we want height
     
     # Create copies of original fields for conservation checks 
     o_temp_old = cp.deepcopy(o_temp); e_ice_old    = cp.deepcopy(e_ice);
@@ -272,7 +275,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     MOM.err_mass       = err_mass
     MOM.err_enth       = err_enth
     MOM.err_salt       = err_salt
-    #MOM.time           = time_mom
+    MOM.time           = time_mom
     # Optional fields
     try:
         MOM.age        = age
@@ -313,6 +316,8 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     SIS.rough_heat     = rough_heat
     SIS.nk_ice         = nk_ice
     SIS.H_to_kg_m2     = H_to_kg_m2
+    SIS.rho_ice        = rho_ice
+    SIS.rho_snow       = rho_snow
     
     # Initialise ice sheet data structure
     ICE = PISM_vars()
