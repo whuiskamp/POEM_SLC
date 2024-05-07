@@ -8,17 +8,19 @@
 
 import numpy as np
 import re
+from flood_fill import flood_fill
 
-def get_halo(MOM,row,col,size,omask,flag=''):
+def get_halo(MOM,row,col,size,omask,ocean='',cont=''):
     # This function creates a halo for a grid cell defined at [row,col]
     # in a 2D array of radius 'size' 
     # In:   MOM      - Data structure containing all ocean restart data
     #       row      - Latitude index of grid cell
     #       col      - Longitude index of grid cell
     #      size      - Radius of halo in gridcells
-    #      grid_x    - Size of the ocean grid (longitude)
-    #      grid_y    - Size of the ocean grid (latitude)
-    #        flag    - Ocean cells only = True, otherwise return whole halo mask
+    #    grid_x      - Size of the ocean grid (longitude)
+    #    grid_y      - Size of the ocean grid (latitude)
+    #     ocean      - Ocean cells only = True, otherwise return whole halo mask
+    #      cont      - Ensures the halo is contiguous and not regions separated by land
     # Out: halo_mask - Boolean mask indicating halo cells
         
     # Define variables
@@ -47,7 +49,7 @@ def get_halo(MOM,row,col,size,omask,flag=''):
        if col_W >= MOM.grid_x:
            col_W = MOM.grid_x
        if col_E <= 0:
-           col_E = 0;
+           col_E = 0
             
     # If we are in the regular grid
     # rightmost column (Westmost)
@@ -58,16 +60,24 @@ def get_halo(MOM,row,col,size,omask,flag=''):
         col_E = MOM.grid_x-(size-col);
     # Uppermost row (Southernmost)
     if row_S < 0:
-        row_S = 0;
+        row_S = 0
            
     halo_cells = norm_cells(col_E,col_W,row_S,row_N,MOM.grid_x).astype(int) 
     # Add halo cells to mask
     halo_mask[halo_cells[0,:],halo_cells[1,:]] = True; 
-    # Finally, if we only want ocean cells, remove the cell around which the 
+    # 1) If we only want ocean cells, remove the cell around which the 
     # halo is made and set all land points to false
-    if flag == True:
+    # 2) If we want a contiguous halo (i.e. no cells on the other side of 
+    # a land barrier or different ocean basin), remove cells not directly
+    # connected to target cell.
+    if ocean == True:
         halo_mask[row,col] = False; halo_mask[omask==0] = False    
-    
+        if cont == True:
+            tmp = np.zeros([MOM.grid_y,MOM.grid_x], dtype=int)
+            tmp[row,col] = 1
+            tmp[halo_mask==True] = 1; tmp[halo_mask==False] = 0
+            new_tmp = flood_fill(col,row,1,tmp,xcyclic=True,tripolar=True)
+            halo_mask[row,col] = False; halo_mask[new_tmp==0] = False
     return halo_mask
 
 def fold_cells(row,col,size,MOM):
@@ -171,13 +181,13 @@ def check_neighbour(data,row,col,flag):
     row_m1 = row-1
     
     if col_p1 == data.shape[1]:
-        col_p1 = 0;
+        col_p1 = 0
     # leftmost column (Eastmost)
     if col_m1 == -1:
-        col_m1 = data.shape[1]-1;
+        col_m1 = data.shape[1]-1
     # Uppermost row (Southernmost)
     if row_m1 < 0:
-        row_m1 = 0;
+        row_m1 = 0
         
     if data[row,col_p1] == flag \
         or data[row,col_m1] == flag \
@@ -191,8 +201,7 @@ def check_neighbour(data,row,col,flag):
             criteria = True
     elif data[row_p1,col] == flag:
          criteria = True
-    
-        
+           
     return criteria
 
 def get_param(data,name=''):
@@ -210,5 +219,4 @@ def get_param(data,name=''):
         out = find.match(line)
         if out:       
             _, val = out.groups()
-    #out = float(val)
     return float(val)

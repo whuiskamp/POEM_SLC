@@ -6,8 +6,9 @@
 import numpy as np
 import copy as cp
 import sys
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/main')
 from shared_funcs import get_halo
+import flood_fill
 
 # For testing, create dummy o_mask array with isolated cells
 # Normal square block
@@ -60,23 +61,23 @@ def ID_iso_cells(row,col,turn1,MOM,OPTS):
     # by their vertices. The square tracing algorithm cannot normally handle this.
     while count < stop and steps_taken < loopy:
         if MOM.o_mask_new[row_new,col_new] == 0:
-            turn = 'right'
+            turn = 'left'
             steps_taken += 1
             #print('test 1')
         elif MOM.o_mask_new[row_new,col_new] == 1 and 1 not in iso_mask:
-            turn = 'left'
+            turn = 'right'
             iso_mask[row_new,col_new] = 1
             count += 1
             steps_taken += 1
             #print('test 2')
         elif MOM.o_mask_new[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask,MOM) == True:
-            turn = 'left'
+            turn = 'right'
             iso_mask[row_new,col_new] = 1
             count += 1
             steps_taken += 1
             #print('test 3')
         elif MOM.o_mask_new[row_new,col_new] == 1 and bounds_chk(row_new,col_new,iso_mask,MOM) == False:
-            turn = 'right'
+            turn = 'left'
             steps_taken += 1
             #print('test 4')
         try:    
@@ -400,7 +401,12 @@ def check_cells(MOM,OPTS):
                         fix_iso_cells(iso_mask,MOM,OPTS)
     return    
         
-        
+def check_cells(MOM,OPTS):
+    iso_mask = cp.deepcopy(MOM.o_mask_new)
+    flood_fill(OPTS.col,OPTS.row,1,0,iso_mask)
+    # We would have to iteratively run this again, to get an array of all iso cells organised into individual groups
+    # so that we can asses them one group at a time.
+
         
         
         

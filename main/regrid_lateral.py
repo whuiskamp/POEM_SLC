@@ -52,6 +52,7 @@ def halo_calc(row,col,data,MOM,size,operation):
     # This function calculates the sum or mean of some variable in halo cells
     # Note: this should NOT be used for tracers with the 'sum' flag, 
     # as no consideration is made regarding volume of the gridcell/water column.
+    # This function assumes we want a contiguous halo.
     # In:  row               - latitude index
     #      col               - longitude index
     #      data              - Data for which to calculate halo values (2D field)
@@ -62,7 +63,7 @@ def halo_calc(row,col,data,MOM,size,operation):
     #      sum_halo          - Sum of values for a variable in halo cells
     #      halo              - Mask of the halo
     #      dat_masked        - Returns original data array, but masked with the halo
-    halo = get_halo(MOM,row,col,size,MOM.o_mask_redist,True) # Must use *new* omask for the halo calc
+    halo = get_halo(MOM,row,col,size,MOM.o_mask_redist,True,True) # Must use *new* omask for the halo calc
     dat_halo = data[halo==True]
     dat_masked = np.full(MOM.o_mask.shape,np.nan)
     dat_masked[halo] = data[halo];
@@ -186,7 +187,7 @@ def redist_mass(MOM,SIS,row,col):
         o_temp, o_salt = tracer_correct(MOM.h_oce,newh,MOM) # This alters exising tracer fields and returns
                                                      # values corrected for change in mass
         # 5. Remove mass from ocean and ice h fields
-        newh[:,row,col] = 0                          # Remove mass from cell and set layers to be land
+        newh[:,row,col] = 0.001                      # Remove mass from cell and set layers to be land
         SIS.ice_frac[:,row,col] = 0                  # Remove ice and snow from cell
         SIS.h_ice[:,row,col] = 0
         SIS.h_sno[:,row,col] = 0
@@ -445,7 +446,7 @@ def tracer2cell(delta_t,tracer,MOM,var=''):
             new[i,:,:] = tracer[i,:,:] + (np.divide(np.multiply(delta_t,wght[i,:,:]),mass[i,:,:]))
     return new
 
-def chk_ssh(h_sum,MOM): # Unfinished- double check everything
+def chk_ssh(h_sum,MOM): # Unfinished - Complete if required.
     # This function checks for sea surface height gradients after redistribution
     # of mass and tracers between ocean cells. For the moment, if neighbouring cells 
     # have a SSH difference of 1m or more, they will get flagged.
@@ -562,7 +563,7 @@ def chk_conserv(OLD,SIS,MOM,data=""):
     
 def redist_vals(MOM,SIS,OLD,OPTS):
 # This function uses the chng_mask variable to either initialise or remove 
-# ocean cells from the mondel domain. The process is currently designed to 
+# ocean cells from the model domain. The process is currently designed to 
 # conservatively redistribute mass and tracers of energy (temperature) and
 # salt between the cell that requires modification and a series of surrounding
 # halo cells. 
@@ -620,9 +621,20 @@ def redist_vals(MOM,SIS,OLD,OPTS):
                 MOM.o_temp = redist_tracers(MOM,SIS,i,j,'temp')
                 MOM.o_salt = redist_tracers(MOM,SIS,i,j,'salt') 
                 MOM.h_oce, MOM.o_salt, MOM.o_temp = redist_mass(MOM,SIS,i,j)
-                # Change NaN vals in T and S fields back to 0's
-                MOM.o_temp[np.isnan(MOM.o_temp)] = 0
-                MOM.o_salt[np.isnan(MOM.o_salt)] = 0
+    
+    # For ocean cells which become land, remove them from all fields
+    MOM.o_temp[:,MOM.o_mask_new==0] = 0
+    MOM.o_salt[:,MOM.o_mask_new==0] = 0
+    MOM.h_oce[:,MOM.o_mask_new==0] = 0.001
+    MOM.ave_eta[MOM.o_mask_new==0] = 0.028
+    MOM.eta[MOM.o_mask_new==0] = 0.028
+    # Change NaN vals back to 0's
+    MOM.o_temp[np.isnan(MOM.o_temp)] = 0
+    MOM.o_salt[np.isnan(MOM.o_salt)] = 0
+    MOM.eta[np.isnan(MOM.eta)] = 0.028
+    MOM.ave_eta[np.isnan(MOM.ave_eta)] = 0.028
+    # Recalculate h_sum for tool diagnostics
+    MOM.h_sum = np.sum(MOM.h_oce,0);
     if OPTS.verbose:
         print('Checking for conservation of mass...')
         chk_conserv(OLD,SIS,MOM,'mass')
