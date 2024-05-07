@@ -139,7 +139,7 @@ def write_rest(MOM,SIS,OPTS):
 
     # Save new bathymetry/ mask data        
     new_bathy.variables['depth'][:,:] = MOM.depth_new
-    Omask.variables['mask'][:,:].data = MOM.o_mask_new
+    Omask.variables['mask'][:,:] = MOM.o_mask_new
 
     # Update MOM6 restart
     MOM6_rest.variables['Temp'][0,:,:,:] = MOM.o_temp
@@ -152,9 +152,9 @@ def write_rest(MOM,SIS,OPTS):
     #MOM6_rest.variables['h2'] = MOM.h2
     
     # Update SIS2 restart
-    SIS2_rest.variables['rough_mom'] = SIS.rough_mom
-    SIS2_rest.variables['rough_heat'] = SIS.rough_heat
-    SIS2_rest.variables['rough_moist'] = SIS.rough_moist
+    SIS2_rest.variables['rough_mom'][0,:,:,:] = SIS.rough_mom
+    SIS2_rest.variables['rough_heat'][0,:,:,:] = SIS.rough_heat
+    SIS2_rest.variables['rough_moist'][0,:,:,:] = SIS.rough_moist
     
     # Close files
     new_bathy.close()
