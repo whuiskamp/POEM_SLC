@@ -5,7 +5,7 @@
 # amount (m) over a given time (years). This assumes density of 
 # fresh water is 1000kg/m3 and that model is using a noleap 
 # calendar.
-# 
+#
 # vprec = calc_mass_flux(slc,time)
 # Input:
 # - slc:   The required sea level change you wish to calculate,
