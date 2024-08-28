@@ -103,7 +103,10 @@ if __name__ == "__main__":
     iso_depth = 10 # The depth at which isolated cells (essentially inland ocean) are made land
     iso_size  = 5  # The number of isolated cells (in a group) below which, these cells are made land
     def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined as a factor of the target cell area.
-                   # E.g., a value of 5 would mean that the halo must be >= 5 times the area of the target cell. 
+                   # E.g., a value of 5 would mean that the halo must be >= 5 times the area of the target cell.
+    FF_chk    = True # Check for isolated cells using a flood fill algorith, rather than edge tracing.
+    ff_init   = [42,42] # The i and j coordinates for initialisation of the floodfill algorithm. Only requires changing
+                   # for non-present day contentialtal configurations. Must be open ocean.
  
 ########### Setup ###########
     t_master_start = t.time()
@@ -143,6 +146,7 @@ if __name__ == "__main__":
     OPTS.iso_depth = iso_depth
     OPTS.iso_size  = iso_size
     OPTS.def_halo  = def_halo
+    OPTS.ff_init   = ff_init
 
     t_data = t.time()-t_data_start
 ########### Check if any cells need to change from land-ocean & vice versa ###########
