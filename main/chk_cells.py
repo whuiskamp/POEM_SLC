@@ -1,7 +1,7 @@
 # This script checks a given ocean mask for non-advective cells or cells that 
 # have been isolated from the ocean. When found, appropriate action is taken to
 # either make them land, or leave them alone (so long as they are stable).
-# (REMEMBER THAT NORTH IS 'DOWN'when viewing in Spyder)
+# (note to self:  NORTH is 'DOWN'when viewing in Spyder)
 
 import numpy as np
 import copy as cp
@@ -401,14 +401,41 @@ def check_cells(MOM,OPTS):
                         fix_iso_cells(iso_mask,MOM,OPTS)
     return    
         
-def check_cells(MOM,OPTS):
-    iso_mask = cp.deepcopy(MOM.o_mask_new)
-    flood_fill(OPTS.col,OPTS.row,1,0,iso_mask)
+def check_cells_FF(MOM,OPTS):
+    # This function checks the ocean mask for cells or groups of cells isolated
+    # from the ocean. Input to this function is assumed to be
+    # two data classes in which all ocean data and optional flags are stored. These 
+    # are initialsed in 'create_data_structs.py
+    # In:  o_mask    - Ocean mask (ocean = 1, land = 0)
+    #      chng_mask - A mask indicating which cells are changing from the last 
+    #                  simulation to the next (-1 = new land, 1 = new ocean)
+    #      MOM       - Data structure containing all ocean restart data
+    #      OPTS      - Data structure containing options flags 
+    # Out: o_mask    - Updated ocean mask
+    #      chng_mask - Updated change mask
     # We would have to iteratively run this again, to get an array of all iso cells organised into individual groups
     # so that we can asses them one group at a time.
-
-        
-        
+    
+    iso_mask = np.zeros(MOM.o_mask_new.shape)
+    flood_mask = np.zeros(MOM.o_mask_new.shape)
+    flood_mask = flood_fill(OPTS.ff_init[0],OPTS.ff_init[1],1,MOM.o_mask_new) # Returns a mask where iso cells are 0, like land.
+    
+    # Compare with the land-sea mask to identify isolated cells.
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            if MOM.o_mask_new[i,j] == 1 and flood_mask[i,j] == 0:
+                iso_mask[i,j] = 1
+    
+    # We need to deal with each isolated group of cells one at a time
+    while any(iso_mask):
+        tmp_mask = np.zeros(iso_mask.shape)
+        for i in range(MOM.grid_y):
+            for j in range(MOM.grid_x):
+                if iso_mask[i,j] == 1:
+                    tmp_mask = flood_fill(i,j,1,iso_mask) # Identify individual groups of isolated cells
+                    fix_iso_cells(tmp_mask,MOM,OPTS) # Fix 'em
+                    iso_mask[tmp_mask==1] = 0 # Remove them from the larger mask
+                    tmp_mask = tmp_mask*0 # Reset the tmp mask
         
         
         
