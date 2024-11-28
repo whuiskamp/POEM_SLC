@@ -15,7 +15,7 @@
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 ##SBATCH --qos=priority
 ##SBATCH --time=2:00:00
-#SBATCH --qos=medium
+##SBATCH --qos=medium
 #SBATCH --time=7-00:00:00
 ##SBATCH --constraint=tasksmax
 
@@ -31,7 +31,8 @@ source activate /home/huiskamp/.conda/envs/mom6
 diag_dir=history
 SLC_work=$PWD/SLC
 SLR_tool=/p/projects/climber3/huiskamp/POEM/work/slr_tool
-runoff_regrid=/p/projects/climber3/huiskamp/regrid_runoff # Maybe incorporate this inside the tool??
+runoff_regrid=/p/projects/climber3/huiskamp/regrid_runoff
+mosaic=/p/projects/climber3/huiskamp/POEM/src/tools/make_coupler_mosaic
 
 # ----------- Run parameters ----------
 START=26  # For a new run, start at 1. For a restart, set this to previous end + 1 (duh..)
@@ -51,7 +52,8 @@ mkdir -p $SLC_work
 OM4_run(){
     # Run MOM6-SIS2
     echo "Running MOM6-SIS2..."
-    srun --propagate=ALL ./MOM6 > MOM_log 2>&1
+    export I_MPI_DEBUG=5
+    mpirun -genvall ./MOM6 > MOM_log 2>&1
     result=$?
     if [ $result != 0 ]; then
         exit $result
@@ -74,7 +76,7 @@ OM4_run(){
 
     # Move restarts to working dir (also create a backup)...
     cp -ar RESTART/  "${diag_dir}/MOM6_run_${RUN_long}"
-    cp -a RESTART/{MOM.res.nc,ice_model.res.nc} $SLC_work
+    cp -a RESTART/{MOM.res.nc,ice_model.res.nc,coupler.res} $SLC_work
     cp -a INPUT/{topog.nc,ocean_mask.nc} $SLC_work
 }
 
@@ -134,9 +136,11 @@ do
     if [ -f chng_mask.pdf ]; then
         mv chng_mask.pdf ${diag_dir}/MOM6_run_${RUN_long}/chng_mask_${RUN_long}.pdf
         cp ${diag_dir}/slc_diag.nc ${diag_dir}/MOM6_run_${RUN_long}/.
+    # Additionally, we need to backup & regenerate the coupler mosaic as well as the river routing.
+    
     fi
     # In any case, copy restarts and topography back to INPUT for restart.
-    cp ${SLC_work}/{MOM.res.nc,ice_model.res.nc,topog.nc} INPUT
+    cp ${SLC_work}/{MOM.res.nc,ice_model.res.nc,topog.nc,ocean_mask.nc,coupler.res} INPUT
 done
 
 

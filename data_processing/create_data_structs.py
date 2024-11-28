@@ -177,7 +177,7 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
         topo_chng = VILMA_data.variables['rsl'][-1,:,:]                  # Relative sea level in m referenced to the start of the simulation (we only want the most recent time-sclice)
         print('RSL field from VILMA successfully extracted')
         depth_new = depth_ctrl[:,:] + topo_chng[:,:]                     # Update topography with RSL fields from VILMA
-        print('Topography updated with RSL field from VILMA')
+        print('Topography updated with RSL anomaly field from VILMA')
         bathy_chg = True
     else:
         print('Model running without solid earth. Bypassing RSL field')
