@@ -11,8 +11,8 @@
 from netCDF4 import Dataset as CDF
 import numpy as np
 import copy as cp
-import sys
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
+#import sys
+#sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
 from shared_funcs import get_param
 from shared_funcs import calc_coast
 
@@ -48,7 +48,12 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     params_SIS = open(work_dir + '/SIS_parameter_doc.all','r').readlines()
     Omask     = CDF(work_dir + '/../INPUT/ocean_mask.nc','r')
     grid      = CDF(work_dir + '/ocean_static.nc','r')
-
+    try:
+        cell_override = CDF(work_dir + 'cell_override.nc','r') # Optional file to ensure some cells remain as they are
+        print('Cell override file found! Some cells will not be allowed to change')
+    except(KeyError):
+        print('No cell override file found. Grid will evolve freely')
+    
     if ICE:
         PISM_data = CDF(work_dir + 'ice-data','r') # This should already have been regridded to the ocean grid
     if EARTH:
@@ -96,7 +101,20 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
         print('Age tracer in use!')
     except(KeyError):
         print('Age tracer not in use')
-
+    
+    try:
+        c_ovr = cell_override.variables['fixed_cells']                  # Which cells on the ocean grid are not allowed to change their state (boolean)
+    except:
+        print('No cell override file found. Setting c_ovr to zero')
+    else:
+        c_ovr = np.zeros(h_oce.shape)
+        
+    try:
+        c_hist = cell_override.variables['cell_history']                # Cumulative topography modifications (in m) required to maintain cells in fixed state.
+    except:
+        print('Setting c_hist to zero')
+    else:
+        c_hist = np.zeros(h_oce.shape)
     ######################### End Optional ocean vars #####################
 
     if verbose:
@@ -220,8 +238,6 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     # Initialise options class
     OPTS = options()
     OPTS.verbose      = verbose
-    OPTS.ICE          = ICE
-    OPTS.EARTH        = EARTH
     OPTS.w_dir        = work_dir
     OPTS.bathy_chg    = bathy_chg
 
@@ -279,6 +295,14 @@ def init_data_structs(work_dir,ICE,EARTH,verbose):
     # Optional fields
     try:
         MOM.age        = age
+    except:
+        pass
+    try:
+        MOM.c_ovr      = c_ovr
+    except:
+        pass
+    try:
+        MOM.c_hist     = c_hist
     except:
         pass
 

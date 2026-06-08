@@ -21,10 +21,7 @@
 ## Import packages ##
 
 import numpy as np
-import sys
 import copy as cp
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/1_run_PISM')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/3_check_channels')
 from shared_funcs import halo_eta
 from chk_cells import check_cells
 import matplotlib.pyplot as plt
@@ -54,42 +51,70 @@ def check_water_col(MOM,ICE,OPTS):
             print('Sea level has decreased; adjusting topography by -1m...')
     elif not abs(glob_ave_ssh) >= 1 and OPTS.verbose:
         print('GMS has not changed by 1m or more, moving on...')
+        
+    # Next we check to see if cells previously blocked from changing, have been
+    # allowed to evolve freely. If so, we begin to undo any artificial changes applied to
+    # the bathymetry.
+    
+    for i in range(MOM.grid_y):
+        for j in range(MOM.grid_x):
+            if MOM.c_ovr[i,j] == 0 and MOM.c_hist[i,j] > 0:
+                MOM.depth_new[i,j] -= 0.5
+                MOM.c_hist -= 0.5
+            elif MOM.c_ovr[i,j] == 0 and MOM.c_hist[i,j] < 0:
+                MOM.depth_new[i,j] += 0.5
+                MOM.c_hist += 0.5
 
     # Check 1: Have we created new land via changes in ice sheet extent or
     # topography height? Update mask & change mask
-    # Remember, in PISM 1 = Ice free bedrock, 2 = Grounded ice, 3 = Floating ice shelf
+    # In PISM 1 = Ice free bedrock, 2 = Grounded ice, 3 = Floating ice shelf
     # 4 = Open ocean.
+    # There is also a check to see if the cell is required to remain as ocean or land.
+    # If so, we simply increase/decrease the bathymetry by one meter and make a note of this 
+    # in c_hist.
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if (ICE.I_mask[i,j] == 2 and MOM.o_mask[i,j] > 0) or (MOM.depth_new[i,j] < OPTS.min_depth and MOM.o_mask[i,j] > 0):
-                MOM.o_mask_new[i,j] = 0;
-                MOM.depth_new[i,j]  = 0; 
-                MOM.chng_mask[i,j]  = -1;
-                if OPTS.verbose:
-                    print('cell i='+str(i)+', j='+str(j)+' is becoming land \
-                          due to changes in ice mask/ bathymetry')
+                if MOM.c_ovr[i,j] == 1:
+                    MOM.depth_new[i,j] += 0.5
+                    MOM.c_hist[i,j] += 0.5
+                else:
+                    MOM.o_mask_new[i,j] = 0;
+                    MOM.depth_new[i,j]  = 0; 
+                    MOM.chng_mask[i,j]  = -1;
+                    if OPTS.verbose:
+                        print('cell i='+str(i)+', j='+str(j)+' is becoming land \
+                              due to changes in ice mask/ bathymetry')
     
     # Check 2: Has a change in SSH created new land?
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if  MOM.h_sum[i,j] < OPTS.min_thk and MOM.o_mask[i,j] > 0:
-                MOM.o_mask_new[i,j] = 0;
-                MOM.depth_new[i,j]  = 0;
-                MOM.chng_mask[i,j]  = -1;
-                if OPTS.verbose:
-                    print('cell i='+str(i)+', j='+str(j)+' is becoming land \
-                          due to a decrease in SSH')
+                if MOM.c_ovr[i,j] == 1:
+                    MOM.depth_new[i,j] += 0.5
+                    MOM.c_hist[i,j] += 0.5
+                else:
+                    MOM.o_mask_new[i,j] = 0;
+                    MOM.depth_new[i,j]  = 0;
+                    MOM.chng_mask[i,j]  = -1;
+                    if OPTS.verbose:
+                        print('cell i='+str(i)+', j='+str(j)+' is becoming land \
+                              due to a decrease in SSH')
     # Check 3: Have cells become ocean due to receding land ice or SLR?    
     for i in range(MOM.grid_y):
         for j in range(MOM.grid_x):
             if ICE.I_mask[i,j] == 4 and MOM.o_mask[i,j] == 0 and MOM.coast == 1 and MOM.depth_new[i,j] >= OPTS.new_depth:
                 eta_mean = halo_eta(MOM.h_sum,i,j);
-                if eta_mean >= OPTS.new_depth: 
-                    MOM.chng_mask[i,j]  = 1;
-                    MOM.o_mask_new[i,j] = 1;
-                    if OPTS.verbose:
-                        print('cell i='+str(i)+', j='+str(j)+' is becoming ocean')
-
+                if eta_mean >= OPTS.new_depth:
+                    if MOM.c_ovr[i,j] == 1:
+                       MOM.depth_new[i,j] -= 0.5
+                       MOM.c_hist[i,j] -= 0.5
+                    else:
+                       MOM.chng_mask[i,j]  = 1;
+                       MOM.o_mask_new[i,j] = 1;
+                       if OPTS.verbose:
+                           print('cell i='+str(i)+', j='+str(j)+' is becoming ocean')
+                        
     # Having completed these checks/ changes, set all land values to 0.
     MOM.depth_new[MOM.o_mask <= 0] = 0   
 

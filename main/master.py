@@ -11,13 +11,12 @@
 
 import time as t
 import sys
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import argparse
-import subprocess as sp
+#import subprocess as sp
 
 # Path where the tool is saved
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/common_funcs')
-sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/data_processing')
+sys.path.append('/p/projects/climber3/huiskamp/POEM/work/slr_tool/main')
 
 # Import custom functions
 import regrid_restarts
@@ -27,7 +26,7 @@ from regrid_lateral import redist_vals
 from prep_restarts import update_bathy, prep_fields, write_rest
 
 __author__ 	   = "Willem Huiskamp"
-__copyright__  = "Copyright 2024"
+__copyright__  = "Copyright 2025"
 __credits__    = ["Willem Huiskamp", ""]
 __license__    = "GPLv3"
 __version__    = "1.0.0"
@@ -104,10 +103,11 @@ if __name__ == "__main__":
     iso_size  = 5  # The number of isolated cells (in a group) below which, these cells are made land
     def_halo  = 10 # The default halo size when redistributing mass/tracers. Defined as a factor of the target cell area.
                    # E.g., a value of 5 would mean that the halo must be >= 5 times the area of the target cell.
-    FF_chk    = True # Check for isolated cells using a flood fill algorith, rather than edge tracing.
+    FF_chk    = True # Check for isolated cells using a flood fill algorithm
     ff_init   = [42,42] # The i and j coordinates for initialisation of the floodfill algorithm. Only requires changing
                    # for non-present day contentialtal configurations. Must be open ocean.
- 
+    cell_ovr  = False # Set to true if you wish to provide a file which will keep specific cells from switching from land/sea
+                   # If true, script expects file 'cell_override.nc' in the SLC directory.
 ########### Setup ###########
     t_master_start = t.time()
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         t_regr_start = t.time()
         if args.verbose:    
             print("Regridding inputs files from PISM/VILMA...")
-        regrid_rest(args.path)
+        regrid_restarts(args.path)
         t_regr = t.time() - t_regr_start
 
 ########### Read in model files and create data structures ###########
@@ -147,6 +147,7 @@ if __name__ == "__main__":
     OPTS.iso_size  = iso_size
     OPTS.def_halo  = def_halo
     OPTS.ff_init   = ff_init
+    OPTS.cell_ovr  = cell_ovr
 
     t_data = t.time()-t_data_start
 ########### Check if any cells need to change from land-ocean & vice versa ###########

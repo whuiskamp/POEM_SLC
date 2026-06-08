@@ -16,6 +16,7 @@
 ##SBATCH --qos=priority
 ##SBATCH --time=2:00:00
 ##SBATCH --qos=medium
+#SBATCH --qos=long
 #SBATCH --time=7-00:00:00
 ##SBATCH --constraint=tasksmax
 
@@ -31,7 +32,7 @@ source activate /home/huiskamp/.conda/envs/mom6
 diag_dir=history
 SLC_work=$PWD/SLC
 SLR_tool=/p/projects/climber3/huiskamp/POEM/work/slr_tool
-runoff_regrid=/p/projects/climber3/huiskamp/regrid_runoff
+runoff=/p/projects/climber3/huiskamp/regrid_runoff
 mosaic=/p/projects/climber3/huiskamp/POEM/src/tools/make_coupler_mosaic
 
 # ----------- Run parameters ----------
@@ -112,6 +113,28 @@ slc_run(){
     fi
 }   
 
+regen_domain(){
+    # Backup the coupler mosaics and runoff field for the previous coupling interval
+    cd INPUT
+    cp *_mosaic_tile1.nc ${diag_dir}/MOM6_run_${RUN_long}/.
+    cp runoff_newgrid.nc ${diag_dir}/MOM6_run_${RUN_long}/.
+    # Generate new coupler mosaics
+    ${mosaic}/make_coupler_mosaic \
+        --atmos_mosaic atmos_mosaic.nc \
+        --ocean_mosaic ocean_mosaic.nc \
+        --land_mosaic land_mosaic.nc \
+        --ocean_topog topog.nc \
+        --check
+    # Now regenerate the runoff field
+    ${runoff}/regrid_runoff.py \
+        ocean_hgrid.nc \
+        ocean_mask.nc -m mask \
+        ${runoff}/runoff.daitren.clim.10FEB2011.nc \
+        runoff_newgrid.nc \
+        -p --fms --fmst
+    # Return to exp. dir.
+    cd ..
+}
 
 # ----------- Run the model ----------
 
